@@ -71,7 +71,7 @@ const Refund = ({ refunds = [], onSave, onDelete, onUpdateStatus, loading = fals
       type: formData.type,
       status: formData.status,
       reason: formData.reason,
-      slip: imagePreview,
+      slip_name: '',
     });
 
     setFormData({

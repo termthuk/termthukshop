@@ -39,7 +39,7 @@ const Stock = ({
   const handleModalSubmit = async () => {
     if (modalMode === 'addCustom') {
       if (customName && customMax) {
-        await onAddCustom({ name: customName, max_quantity: parseInt(customMax) });
+        await onAddCustom({ key_name: customName.toLowerCase().replace(/\s+/g, '_'), name: customName, max_quantity: parseInt(customMax) });
         setModalOpen(false);
       }
     } else {

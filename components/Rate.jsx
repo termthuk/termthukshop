@@ -385,39 +385,47 @@ const Rate = ({
                 </tr>
               </thead>
               <tbody>
-                {logs.slice(0, 20).map((log, idx) => (
-                  <tr key={idx} style={{
-                    borderBottom: '1px solid rgba(139,92,246,0.1)',
-                    backgroundColor: idx % 2 === 0 ? 'rgba(0,0,0,0.2)' : 'transparent',
-                  }}>
-                    <td style={{ padding: '12px', fontSize: '13px' }}>{log.date}</td>
-                    <td style={{ padding: '12px', fontSize: '13px' }}>{log.currency}</td>
-                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px' }}>
-                      {log.old_cost.toFixed(2)}
-                    </td>
-                    <td style={{
-                      padding: '12px',
-                      textAlign: 'center',
-                      fontSize: '13px',
-                      color: log.new_cost > log.old_cost ? '#f472b6' : '#4ade80',
-                      fontWeight: 'bold',
+                {logs.slice(0, 20).map((log, idx) => {
+                  const logDate = log.date || (log.created_at ? new Date(log.created_at).toLocaleDateString('th-TH') : '-');
+                  const logName = log.currency || log.name || '-';
+                  const costVal = log.old_cost ?? log.cost_per_100 ?? 0;
+                  const sellVal = log.old_sell ?? log.sell_per_100 ?? 0;
+                  const newCostVal = log.new_cost ?? log.cost_per_100 ?? 0;
+                  const newSellVal = log.new_sell ?? log.sell_per_100 ?? 0;
+                  return (
+                    <tr key={idx} style={{
+                      borderBottom: '1px solid rgba(139,92,246,0.1)',
+                      backgroundColor: idx % 2 === 0 ? 'rgba(0,0,0,0.2)' : 'transparent',
                     }}>
-                      {log.new_cost.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px' }}>
-                      {log.old_sell.toFixed(2)}
-                    </td>
-                    <td style={{
-                      padding: '12px',
-                      textAlign: 'center',
-                      fontSize: '13px',
-                      color: log.new_sell > log.old_sell ? '#4ade80' : '#f472b6',
-                      fontWeight: 'bold',
-                    }}>
-                      {log.new_sell.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+                      <td style={{ padding: '12px', fontSize: '13px' }}>{logDate}</td>
+                      <td style={{ padding: '12px', fontSize: '13px' }}>{logName}</td>
+                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px' }}>
+                        {Number(costVal).toFixed(2)}
+                      </td>
+                      <td style={{
+                        padding: '12px',
+                        textAlign: 'center',
+                        fontSize: '13px',
+                        color: newCostVal > costVal ? '#f472b6' : '#4ade80',
+                        fontWeight: 'bold',
+                      }}>
+                        {Number(newCostVal).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '12px', textAlign: 'center', fontSize: '13px' }}>
+                        {Number(sellVal).toFixed(2)}
+                      </td>
+                      <td style={{
+                        padding: '12px',
+                        textAlign: 'center',
+                        fontSize: '13px',
+                        color: newSellVal > sellVal ? '#4ade80' : '#f472b6',
+                        fontWeight: 'bold',
+                      }}>
+                        {Number(newSellVal).toFixed(2)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

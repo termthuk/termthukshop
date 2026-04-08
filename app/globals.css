@@ -100,6 +100,7 @@ body::before {
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
 }
 .form-select option { background: #0f0f1e; color: var(--text); }
+select option { background: #0f0f1e; color: #e2e8f0; }
 
 /* Button styles */
 .btn-primary {

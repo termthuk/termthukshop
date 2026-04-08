@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-const SalesForm = ({ onSave, loading = false }) => {
+const SalesForm = ({ onSave, loading = false, stock = [] }) => {
   const [formData, setFormData] = useState({
     date: '2026-04-08',
     seller: '',
@@ -14,6 +14,8 @@ const SalesForm = ({ onSave, loading = false }) => {
     price: '',
     cost: '',
     note: '',
+    stockId: '',
+    stockQty: '',
   });
 
   const [errors, setErrors] = useState({});
@@ -48,6 +50,8 @@ const SalesForm = ({ onSave, loading = false }) => {
     }
   };
 
+  const selectedStock = stock.find(s => String(s.id) === String(formData.stockId));
+
   const validate = () => {
     const newErrors = {};
     if (!formData.seller) newErrors.seller = 'Seller is required';
@@ -56,6 +60,13 @@ const SalesForm = ({ onSave, loading = false }) => {
     if (!formData.buyer) newErrors.buyer = 'Buyer is required';
     if (!formData.price) newErrors.price = 'Price is required';
     if (!formData.cost) newErrors.cost = 'Cost is required';
+    if (formData.stockId) {
+      if (!formData.stockQty || parseInt(formData.stockQty) <= 0) {
+        newErrors.stockQty = 'กรุณาระบุจำนวนที่ต้องการตัด';
+      } else if (selectedStock && parseInt(formData.stockQty) > selectedStock.quantity) {
+        newErrors.stockQty = `Stock ไม่พอ (เหลือ ${selectedStock.quantity})`;
+      }
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -83,7 +94,12 @@ const SalesForm = ({ onSave, loading = false }) => {
       note: formData.note,
     };
 
-    await onSave(orderData);
+    const stockDeduct = formData.stockId ? {
+      stockId: formData.stockId,
+      stockQty: parseInt(formData.stockQty),
+    } : null;
+
+    await onSave(orderData, stockDeduct);
     setFormData({
       date: '2026-04-08',
       seller: '',
@@ -95,6 +111,8 @@ const SalesForm = ({ onSave, loading = false }) => {
       price: '',
       cost: '',
       note: '',
+      stockId: '',
+      stockQty: '',
     });
   };
 
@@ -110,6 +128,8 @@ const SalesForm = ({ onSave, loading = false }) => {
       price: '',
       cost: '',
       note: '',
+      stockId: '',
+      stockQty: '',
     });
     setErrors({});
   };
@@ -384,6 +404,76 @@ const SalesForm = ({ onSave, loading = false }) => {
               {errors.cost && <p style={{ color: '#f472b6', fontSize: '12px', marginTop: '4px' }}>{errors.cost}</p>}
             </div>
           </div>
+
+          {/* Stock Deduction */}
+          {stock.length > 0 && (
+            <div style={{
+              backgroundColor: 'rgba(56,189,248,0.05)',
+              border: '1px solid rgba(56,189,248,0.2)',
+              borderRadius: '8px',
+              padding: '16px',
+              marginBottom: '16px',
+            }}>
+              <label style={{ color: '#38bdf8', fontSize: '14px', display: 'block', marginBottom: '10px', fontWeight: '500' }}>
+                📦 ตัด Stock สินค้า (ไม่บังคับ)
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <select
+                    name="stockId"
+                    value={formData.stockId}
+                    onChange={handleChange}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      backgroundColor: 'rgba(139,92,246,0.1)',
+                      border: '1px solid rgba(56,189,248,0.3)',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontFamily: 'Kanit',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="">-- ไม่ตัด Stock --</option>
+                    {stock.map(item => (
+                      <option key={item.id} value={item.id}>
+                        {item.icon || '📦'} {item.name} (คงเหลือ: {item.quantity.toLocaleString()})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <input
+                    type="number"
+                    name="stockQty"
+                    placeholder="จำนวนที่ตัด"
+                    value={formData.stockQty}
+                    onChange={handleChange}
+                    disabled={!formData.stockId}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      backgroundColor: 'rgba(139,92,246,0.1)',
+                      border: `1px solid ${errors.stockQty ? '#f472b6' : 'rgba(56,189,248,0.3)'}`,
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                      fontFamily: 'Kanit',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                      opacity: formData.stockId ? 1 : 0.5,
+                    }}
+                  />
+                  {errors.stockQty && <p style={{ color: '#f472b6', fontSize: '12px', marginTop: '4px' }}>{errors.stockQty}</p>}
+                </div>
+              </div>
+              {selectedStock && formData.stockQty && parseInt(formData.stockQty) > 0 && (
+                <p style={{ color: '#38bdf8', fontSize: '12px', marginTop: '8px' }}>
+                  หลังตัด: {selectedStock.name} จะเหลือ {(selectedStock.quantity - parseInt(formData.stockQty)).toLocaleString()} จาก {selectedStock.quantity.toLocaleString()}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Profit Display */}
           <div style={{

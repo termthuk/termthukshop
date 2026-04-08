@@ -63,11 +63,31 @@ function DashboardContent() {
   }, [loadData])
 
   // ============== ORDER HANDLERS ==============
-  const handleSaveOrder = async (orderData) => {
+  const handleSaveOrder = async (orderData, stockDeduct = null) => {
     setLoading(true)
     try {
       const newOrder = await createOrder(orderData)
       setOrders(prev => [newOrder, ...prev])
+
+      // Deduct stock if selected
+      if (stockDeduct) {
+        const { stockId, stockQty } = stockDeduct
+        const item = stock.find(s => String(s.id) === String(stockId))
+        if (item) {
+          const newQty = item.quantity - stockQty
+          const updated = await updateStock(stockId, newQty)
+          setStock(prev => prev.map(s => String(s.id) === String(stockId) ? updated : s))
+          const log = await createStockLog({
+            stock_key: item.key_name,
+            stock_name: item.name,
+            action: 'ใช้',
+            quantity: stockQty,
+            note: `ขาย ${orderData.game} ให้ ${orderData.buyer}`,
+          })
+          setStockLogs(prev => [log, ...prev])
+        }
+      }
+
       toast('✅ บันทึกรายการสำเร็จ!')
     } catch (err) {
       toast('❌ บันทึกล้มเหลว: ' + err.message, 'error')
@@ -198,7 +218,7 @@ function DashboardContent() {
     overview: <Overview orders={orders} refunds={refunds} />,
     sales: (
       <div>
-        <SalesForm onSave={handleSaveOrder} loading={loading} />
+        <SalesForm onSave={handleSaveOrder} loading={loading} stock={stock} />
         <SalesTable orders={orders} onDelete={handleDeleteOrder} />
       </div>
     ),

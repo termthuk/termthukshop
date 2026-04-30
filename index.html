@@ -75,11 +75,11 @@
 
     <form id="login-form" class="space-y-3">
       <div>
-        <label class="text-xs text-slate-400">Email</label>
-        <input class="input" type="email" name="email" placeholder="you@example.com" required autocomplete="email">
+        <label class="text-xs text-slate-400">ชื่อผู้ใช้ (Username)</label>
+        <input class="input" type="text" name="username" placeholder="username" required autocomplete="username" pattern="[a-zA-Z0-9_.\-@]+">
       </div>
       <div>
-        <label class="text-xs text-slate-400">Password</label>
+        <label class="text-xs text-slate-400">รหัสผ่าน (Password)</label>
         <input class="input" type="password" name="password" placeholder="รหัสผ่าน" required minlength="6" autocomplete="current-password">
       </div>
       <button id="login-submit" class="btn w-full mt-2">เข้าสู่ระบบ</button>
@@ -582,7 +582,11 @@
         <div class="card">
           <h3 class="font-semibold mb-3">➕ เพิ่มสมาชิกใหม่</h3>
           <form id="form-add-user" class="space-y-3">
-            <div><label class="text-xs text-slate-400">อีเมล</label><input class="input" type="email" name="email" placeholder="member@example.com" required autocomplete="off"></div>
+            <div>
+              <label class="text-xs text-slate-400">ชื่อผู้ใช้ (Username)</label>
+              <input class="input" type="text" name="username" placeholder="เช่น somchai" required autocomplete="off" pattern="[a-zA-Z0-9_.\-]+">
+              <div class="text-xs text-slate-500 mt-1">ใช้ a-z, 0-9, _, -, . เท่านั้น</div>
+            </div>
             <div><label class="text-xs text-slate-400">รหัสผ่าน</label><input class="input" type="password" name="password" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6" autocomplete="new-password"></div>
             <div><label class="text-xs text-slate-400">ชื่อ (ไม่บังคับ)</label><input class="input" name="full_name"></div>
             <div><label class="text-xs text-slate-400">บทบาท</label>
@@ -593,11 +597,6 @@
             </div>
             <button class="btn w-full" type="submit">➕ สร้างบัญชี</button>
           </form>
-          <div class="mt-4 pt-3 border-t border-white/10">
-            <div class="text-xs text-slate-400 mb-2">หรือส่งลิงก์ให้สมัครเอง:</div>
-            <button class="btn btn-ghost w-full text-xs" onclick="copyInviteLink()">📋 คัดลอกลิงก์เชิญ</button>
-            <div class="text-xs text-cyan-300 break-all mt-2" id="invite-link">—</div>
-          </div>
         </div>
       </div>
     </section>
@@ -761,11 +760,25 @@ document.getElementById('date-to').addEventListener('change', e=>setDateRange(da
 /* ============================================================
    AUTH
    ============================================================ */
+const USERNAME_DOMAIN = 'termthuk.local';
+function usernameToEmail(input){
+  const s = (input||'').trim();
+  if(!s) return s;
+  if(s.includes('@')) return s; // already an email
+  return s + '@' + USERNAME_DOMAIN;
+}
+function displayName(emailOrUsername){
+  const s = emailOrUsername || '';
+  if(s.endsWith('@'+USERNAME_DOMAIN)) return s.slice(0, -('@'+USERNAME_DOMAIN).length);
+  return s;
+}
+
 document.getElementById('login-form').addEventListener('submit', async e=>{
   e.preventDefault();
   hideAlerts();
   const fd = new FormData(e.target);
-  const email = fd.get('email'), password = fd.get('password');
+  const username = fd.get('username'), password = fd.get('password');
+  const email = usernameToEmail(username);
   const btn = document.getElementById('login-submit');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังดำเนินการ...';
   try {
@@ -834,7 +847,7 @@ function applyRoleAccess(){
   const ui = document.getElementById('user-info');
   if(ui){
     const badge = currentRole === 'admin' ? ' <span class="pill pill-info" style="margin-left:6px">Admin</span>' : ' <span class="pill pill-warn" style="margin-left:6px">Member</span>';
-    ui.innerHTML = '👤 ' + escapeHtml(currentUser.email) + badge;
+    ui.innerHTML = '👤 ' + escapeHtml(displayName(currentUser.email)) + badge;
   }
 }
 
@@ -1703,7 +1716,7 @@ function renderUsers(){
     const roleBadge = u.role==='admin' ? '<span class="pill pill-info">Admin</span>' : '<span class="pill pill-warn">Member</span>';
     const activeBadge = u.active===false ? '<span class="pill pill-bad">ปิด</span>' : '<span class="pill pill-good">ใช้งาน</span>';
     return `<tr>
-      <td class="font-medium">${escapeHtml(u.email||'')}${isMe?' <span class="text-xs text-cyan-300">(คุณ)</span>':''}</td>
+      <td class="font-medium">${escapeHtml(displayName(u.email||''))}${isMe?' <span class="text-xs text-cyan-300">(คุณ)</span>':''}</td>
       <td>${escapeHtml(u.full_name||'-')}</td>
       <td>${roleBadge}</td>
       <td>${activeBadge}</td>
@@ -1732,9 +1745,12 @@ async function addUserSubmit(e){
   if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่สร้างบัญชีได้'); return; }
   const f = e.target;
   const fd = new FormData(f);
-  const email = fd.get('email'), password = fd.get('password');
+  const username = (fd.get('username')||'').trim().toLowerCase();
+  const password = fd.get('password');
   const full_name = (fd.get('full_name')||'').trim();
   const role = fd.get('role') || 'staff';
+  if(!/^[a-z0-9_.\-]+$/.test(username)){ alert('ชื่อผู้ใช้ใช้ได้เฉพาะ a-z, 0-9, _, -, .'); return; }
+  const email = usernameToEmail(username);
   const btn = f.querySelector('button[type=submit]');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังสร้าง...';
   try {
@@ -1765,7 +1781,7 @@ async function addUserSubmit(e){
       });
     }
     f.reset();
-    toast('✅ สร้างบัญชี '+email+' เรียบร้อย');
+    toast('✅ สร้างบัญชี '+username+' เรียบร้อย');
     await loadAllData();
     renderUsers();
   } catch(err){
@@ -1776,10 +1792,17 @@ async function addUserSubmit(e){
 }
 async function deleteUser(id, email){
   if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบบัญชีได้'); return; }
-  if(!confirm(`ลบสมาชิก "${email}" ออกจากรายชื่อ?\n\n⚠️ หมายเหตุ: การลบนี้จะลบโปรไฟล์ออกจากระบบ แต่บัญชี Auth ใน Supabase ยังคงอยู่ — ผู้ใช้ยัง login ได้ ถ้าต้องการลบถาวรให้ลบจาก Supabase Authentication panel ด้วย`)) return;
-  const { error } = await supa.from('user_profiles').delete().eq('id', id);
+  if(!confirm(`ลบสมาชิก "${email}" ออกจากระบบถาวร?\n\n⚠️ การลบนี้ลบบัญชี Auth ออกถาวร — ผู้ใช้จะ login ไม่ได้อีก ไม่สามารถยกเลิกได้`)) return;
+  const { data, error } = await supa.rpc('admin_delete_user', { target_id: id });
   if(error){ alert('ลบล้มเหลว: '+error.message); return; }
-  toast('🗑️ ลบบัญชีจากรายชื่อแล้ว');
+  if(data && data.success === false){
+    const map = {unauthorized:'คุณไม่มีสิทธิ์ลบ', cannot_delete_self:'ลบบัญชีตัวเองไม่ได้'};
+    alert('ลบล้มเหลว: '+(map[data.error]||data.error));
+    return;
+  }
+  toast('🗑️ ลบบัญชีถาวรแล้ว');
+  await loadAllData();
+  renderUsers();
 }
 async function toggleUserRole(id, current){
   if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่เปลี่ยนบทบาทได้'); return; }
@@ -1828,7 +1851,7 @@ function renderLogs(){
     const ua = (l.user_agent||'').slice(0,80);
     return `<tr>
       <td class="text-slate-400 text-xs whitespace-nowrap">${new Date(l.created_at).toLocaleString('th-TH')}</td>
-      <td>${escapeHtml(l.email||'-')}</td>
+      <td>${escapeHtml(displayName(l.email||'-'))}</td>
       <td>${evMap[l.event]||escapeHtml(l.event||'-')}</td>
       <td class="text-slate-500 text-xs">${escapeHtml(ua)}</td>
     </tr>`;

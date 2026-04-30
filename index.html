@@ -717,7 +717,7 @@ function init(){
    ============================================================ */
 function inDateFilter(d){
   if(!d) return true;
-  const x = (typeof d === 'string' ? d : d.toISOString()).slice(0,10);
+  const x = ymdInTz(d);
   if(dateFilter.from && x < dateFilter.from) return false;
   if(dateFilter.to && x > dateFilter.to) return false;
   return true;
@@ -989,6 +989,25 @@ function fmtN(n){ return Number(n||0).toLocaleString('th-TH',{maximumFractionDig
 function pad(n){ return n<10?'0'+n:n; }
 function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
 function nowLocal(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+const APP_TZ = 'Asia/Bangkok';
+function ymdInTz(input){
+  const d = !input ? new Date() : (typeof input === 'string' ? new Date(input) : input);
+  if(!d || isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-CA', {timeZone: APP_TZ});
+}
+function ymInTz(input){ return ymdInTz(input).slice(0,7); }
+function localDatetimeToIso(s){
+  if(!s || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s;
+  return new Date(s).toISOString();
+}
+function dtInTz(input){
+  if(!input) return '';
+  const d = typeof input === 'string' ? new Date(input) : input;
+  if(!d || isNaN(d.getTime())) return String(input).slice(0,16).replace('T',' ');
+  const ymd = d.toLocaleDateString('en-CA', {timeZone: APP_TZ});
+  const hm = d.toLocaleTimeString('en-GB', {timeZone: APP_TZ, hour:'2-digit', minute:'2-digit', hour12:false});
+  return ymd + ' ' + hm;
+}
 
 function renderOverview(){
   const tx = state.transactions.filter(t=>inDateFilter(t.date));
@@ -999,8 +1018,8 @@ function renderOverview(){
   document.getElementById('kpi-sales').textContent = fmt(sales);
   document.getElementById('kpi-profit').textContent = fmt(profit);
   document.getElementById('kpi-tx').textContent = tx.length.toLocaleString();
-  const today = todayStr();
-  const todayTx = tx.filter(t=>t.date && t.date.startsWith(today));
+  const today = ymdInTz(new Date());
+  const todayTx = tx.filter(t=>t.date && ymdInTz(t.date)===today);
   document.getElementById('kpi-cost-sub').textContent = `วันนี้ ${fmt(todayTx.reduce((s,t)=>s+(+t.cost||0),0))}`;
   document.getElementById('kpi-sales-sub').textContent = `วันนี้ ${fmt(todayTx.reduce((s,t)=>s+(+t.sales||0),0))}`;
   document.getElementById('kpi-profit-sub').textContent = sales? `Margin ${(profit/sales*100).toFixed(1)}%`:'—';
@@ -1009,9 +1028,9 @@ function renderOverview(){
   const days=[],dC=[],dS=[],dP=[];
   for(let i=29;i>=0;i--){
     const d = new Date(); d.setDate(d.getDate()-i);
-    const k = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    days.push(`${pad(d.getDate())}/${pad(d.getMonth()+1)}`);
-    const dt = tx.filter(t=>t.date && t.date.startsWith(k));
+    const k = ymdInTz(d);
+    days.push(k.slice(8,10)+'/'+k.slice(5,7));
+    const dt = tx.filter(t=>t.date && ymdInTz(t.date)===k);
     const c = dt.reduce((s,t)=>s+(+t.cost||0),0);
     const s = dt.reduce((s,t)=>s+(+t.sales||0),0);
     dC.push(c); dS.push(s); dP.push(s-c);
@@ -1063,6 +1082,7 @@ function renderTopup(){
       e.preventDefault();
       const fd = new FormData(f); const obj = Object.fromEntries(fd.entries());
       obj.cost = parseFloat(obj.cost)||0; obj.sales = parseFloat(obj.sales)||0;
+      obj.date = localDatetimeToIso(obj.date);
       obj.created_by = currentUser.id;
       // Warn if balance insufficient
       if(obj.stock_type && obj.stock_type !== 'none'){
@@ -1157,7 +1177,7 @@ function renderRecent(){
     const p = (+t.sales||0)-(+t.cost||0);
     return `<div class="card" style="padding:10px;">
       <div class="flex items-center justify-between"><div class="text-sm font-semibold">${escapeHtml(t.game||'?')}</div><div class="${p>=0?'text-emerald-300':'text-rose-300'} text-sm font-bold">${fmt(p)}</div></div>
-      <div class="text-xs text-slate-400 mt-1">${escapeHtml(t.buyer||'')} • ${escapeHtml(t.channel||'')} • ${(t.date||'').replace('T',' ').slice(0,16)}</div>
+      <div class="text-xs text-slate-400 mt-1">${escapeHtml(t.buyer||'')} • ${escapeHtml(t.channel||'')} • ${dtInTz(t.date)}</div>
     </div>`;
   }).join('');
 }
@@ -1179,7 +1199,7 @@ function renderHistory(){
   body.innerHTML = rows.map(t=>{
     const p = (+t.sales||0)-(+t.cost||0);
     return `<tr>
-      <td class="text-slate-400 text-xs whitespace-nowrap">${(t.date||'').replace('T',' ').slice(0,16)}</td>
+      <td class="text-slate-400 text-xs whitespace-nowrap">${dtInTz(t.date)}</td>
       <td>${escapeHtml(t.buyer||'')}</td><td>${escapeHtml(t.seller||'')}</td>
       <td class="font-medium">${escapeHtml(t.game||'')}</td>
       <td><span class="pill pill-info">${escapeHtml(t.channel||'')}</span></td>
@@ -1476,7 +1496,7 @@ function renderCredit(){
     const btnText = c.status==='paid' ? 'ทำเป็นค้าง' : 'ทำเป็นชำระ';
     const btnClass = c.status==='paid' ? 'btn-ghost' : 'btn';
     return `<tr>
-      <td class="text-slate-400 text-xs whitespace-nowrap">${(c.date||'').replace('T',' ').slice(0,16)}</td>
+      <td class="text-slate-400 text-xs whitespace-nowrap">${dtInTz(c.date)}</td>
       <td>${escapeHtml(c.customer||'')}</td>
       <td class="font-medium">${escapeHtml(c.game||'')}</td>
       <td class="text-right text-cyan-300">${fmt(c.sales)}</td>
@@ -1549,8 +1569,8 @@ function renderExpense(){
     </tr>`).join('');
   document.getElementById('expense-empty').classList.toggle('hidden', list.length>0);
   const total = list.reduce((a,b)=>a+(+b.amount||0),0);
-  const ym = new Date().toISOString().slice(0,7);
-  const monthSum = list.filter(e=>(e.date||'').startsWith(ym)).reduce((a,b)=>a+(+b.amount||0),0);
+  const ym = ymInTz(new Date());
+  const monthSum = list.filter(e=>ymInTz(e.date)===ym).reduce((a,b)=>a+(+b.amount||0),0);
   document.getElementById('expense-total').textContent = fmt(total);
   document.getElementById('expense-month').textContent = fmt(monthSum);
   document.getElementById('expense-count').textContent = list.length;
@@ -1670,9 +1690,9 @@ document.querySelectorAll('[data-captab]').forEach(t=>{
    ============================================================ */
 function renderDividend(){
   const monthEl = document.getElementById('dividend-month');
-  if(!monthEl.value) monthEl.value = new Date().toISOString().slice(0,7);
+  if(!monthEl.value) monthEl.value = ymInTz(new Date());
   const ym = monthEl.value;
-  const inMonth = (d)=>(d||'').startsWith(ym);
+  const inMonth = (d)=>ymInTz(d)===ym;
   const tx = state.transactions.filter(t=>inMonth(t.date));
   const exp = state.expenses.filter(e=>inMonth(e.date));
   const sales = tx.reduce((a,b)=>a+(+b.sales||0),0);
@@ -1842,10 +1862,10 @@ function renderLogs(){
   }).join('');
   document.getElementById('logs-empty').classList.toggle('hidden', list.length>0);
   document.getElementById('logs-count').textContent = state.login_logs.length;
-  const today = new Date().toISOString().slice(0,10);
-  const weekAgo = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
-  document.getElementById('logs-today').textContent = state.login_logs.filter(l=>l.event==='login' && (l.created_at||'').slice(0,10)===today).length;
-  document.getElementById('logs-7d').textContent = state.login_logs.filter(l=>l.event==='login' && (l.created_at||'').slice(0,10)>=weekAgo).length;
+  const today = ymdInTz(new Date());
+  const weekAgo = ymdInTz(new Date(Date.now()-7*86400000));
+  document.getElementById('logs-today').textContent = state.login_logs.filter(l=>l.event==='login' && ymdInTz(l.created_at)===today).length;
+  document.getElementById('logs-7d').textContent = state.login_logs.filter(l=>l.event==='login' && ymdInTz(l.created_at)>=weekAgo).length;
 }
 document.getElementById('logs-search').addEventListener('input', renderLogs);
 document.getElementById('logs-event').addEventListener('change', renderLogs);

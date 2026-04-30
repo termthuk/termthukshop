@@ -7,6 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0f172a;--panel:#111827;--panel-2:#1f2937;--line:#374151;--text:#e5e7eb;--muted:#9ca3af;--accent:#22d3ee;}
@@ -244,6 +245,7 @@
             <option value="mycard">Mycard</option><option value="usdt">USDT/PHP</option>
             <option value="none">เติมตรง</option>
           </select>
+          <button class="btn btn-ghost" onclick="exportXLSX()">📊 Export Excel</button>
           <button class="btn btn-ghost" onclick="exportCSV()">⬇️ Export CSV</button>
         </div>
         <div class="overflow-x-auto scroll-thin">
@@ -376,14 +378,12 @@
     <section id="page-games" class="page hidden fade-in">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card lg:col-span-2">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="font-semibold">🎯 รายชื่อเกม</h3>
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 class="font-semibold">🎯 รายชื่อเกม / สินค้า</h3>
             <input id="games-search" class="input" style="max-width:220px" placeholder="🔎 ค้นหา">
           </div>
-          <div class="overflow-auto scroll-thin">
-            <table><thead><tr><th>เกม</th><th>หมวด</th><th class="text-right">วันที่เพิ่ม</th><th></th></tr></thead><tbody id="games-body"></tbody></table>
-          </div>
-          <div id="games-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีรายการเกม</div>
+          <div id="games-body" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+          <div id="games-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีรายการเกม / สินค้า</div>
         </div>
         <div class="card">
           <h3 class="font-semibold mb-3">🧮 คำนวนต้นทุน</h3>
@@ -399,10 +399,11 @@
         </div>
       </div>
       <div class="card mt-4" data-write-only>
-        <h3 class="font-semibold mb-3">➕ เพิ่มเกมใหม่</h3>
-        <form id="form-game" class="grid grid-cols-1 md:grid-cols-4 gap-3">
-          <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม" required>
-          <input class="input" name="category" placeholder="หมวด">
+        <h3 class="font-semibold mb-3">➕ เพิ่มเกม / สินค้าใหม่</h3>
+        <form id="form-game" class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม / สินค้า" required>
+          <input class="input" name="category" placeholder="หมวด (ไม่บังคับ)">
+          <input class="input" name="price" type="number" step="0.01" min="0" placeholder="ราคาขาย (฿)">
           <button class="btn">เพิ่ม</button>
         </form>
       </div>
@@ -1244,14 +1245,61 @@ function stockLabel(k){
   if(k && k.startsWith('supply:')) return '💳 '+k.slice(7);
   return ({itunes:'iTunes', razer:'Razer', mycard:'Mycard', usdt:'USDT/PHP', none:'เติมตรง'})[k]||'-';
 }
+function exportTxRows(){
+  // Apply current date filter + search + stock filter (what user sees)
+  const q = (document.getElementById('hist-search')?.value||'').toLowerCase();
+  const fs = document.getElementById('hist-stock')?.value;
+  return state.transactions.filter(t=>{
+    if(!inDateFilter(t.date)) return false;
+    if(fs && t.stock_type!==fs) return false;
+    if(q) return [t.buyer,t.seller,t.game,t.channel,t.note].some(v=>(v||'').toString().toLowerCase().includes(q));
+    return true;
+  });
+}
+function exportFilenameStem(){
+  const today = ymdInTz(new Date());
+  const range = (dateFilter.from || dateFilter.to) ? `_${dateFilter.from||'…'}_${dateFilter.to||'…'}` : '';
+  return `termthukshop_history${range}_${today}`;
+}
 function exportCSV(){
   const rows = [['วันที่','ผู้ซื้อ','ผู้ขาย','เกม','ช่องทาง','สต๊อก','ต้นทุน','ยอดขาย','กำไร','หมายเหตุ']];
-  state.transactions.forEach(t=>{
-    rows.push([t.date,t.buyer,t.seller,t.game,t.channel,stockLabel(t.stock_type),t.cost,t.sales,(+t.sales||0)-(+t.cost||0),t.note||'']);
+  exportTxRows().forEach(t=>{
+    rows.push([dtInTz(t.date),t.buyer,t.seller,t.game,t.channel,stockLabel(t.stock_type),t.cost,t.sales,(+t.sales||0)-(+t.cost||0),t.note||'']);
   });
   const csv = '﻿'+rows.map(r=>r.map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download = 'termthukshop_history.csv'; a.click();
-  toast('⬇️ Export เรียบร้อย');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download = exportFilenameStem()+'.csv'; a.click();
+  toast('⬇️ Export CSV เรียบร้อย');
+}
+function exportXLSX(){
+  if(typeof XLSX === 'undefined'){ alert('ไลบรารี Excel ยังไม่โหลด — ลองรอสักครู่หรือ refresh'); return; }
+  const data = exportTxRows().map(t=>({
+    'วันที่/เวลา': dtInTz(t.date),
+    'ผู้ซื้อ': t.buyer||'',
+    'ผู้ขาย': t.seller||'',
+    'เกม': t.game||'',
+    'ช่องทาง': t.channel||'',
+    'สต๊อก': stockLabel(t.stock_type),
+    'ต้นทุน': +t.cost||0,
+    'ยอดขาย': +t.sales||0,
+    'กำไร': (+t.sales||0)-(+t.cost||0),
+    'หมายเหตุ': t.note||''
+  }));
+  // Summary row
+  const totalCost = data.reduce((a,b)=>a+b['ต้นทุน'],0);
+  const totalSales = data.reduce((a,b)=>a+b['ยอดขาย'],0);
+  const totalProfit = data.reduce((a,b)=>a+b['กำไร'],0);
+  data.push({});
+  data.push({'วันที่/เวลา':'รวมทั้งหมด','ต้นทุน':totalCost,'ยอดขาย':totalSales,'กำไร':totalProfit,'หมายเหตุ':`${data.length-2} รายการ`});
+
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [
+    {wch:18},{wch:18},{wch:18},{wch:22},{wch:14},
+    {wch:14},{wch:12},{wch:12},{wch:12},{wch:24}
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'ประวัติการขาย');
+  XLSX.writeFile(wb, exportFilenameStem()+'.xlsx');
+  toast('📊 Export Excel เรียบร้อย');
 }
 
 /* ============================================================
@@ -1464,13 +1512,23 @@ function renderGames(){
   const q = (document.getElementById('games-search').value||'').toLowerCase();
   const list = state.games.filter(g=>(g.name||'').toLowerCase().includes(q)).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   document.getElementById('games-body').innerHTML = list.map(g=>{
-    const d = g.created_at ? (g.created_at+'').slice(0,10) : '-';
-    return `<tr>
-      <td class="font-medium">${escapeHtml(g.name||'')}</td>
-      <td class="text-slate-400">${escapeHtml(g.category||'-')}</td>
-      <td class="text-right text-slate-500 text-xs">${d}</td>
-      <td>${currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delGame('${g.id}')">ลบ</button>` : ''}</td>
-    </tr>`;
+    const price = +g.price||0;
+    const priceTxt = price>0 ? fmt(price) : '<span class="text-slate-500 text-xs">ยังไม่ตั้งราคา</span>';
+    const cat = g.category ? `<span class="pill pill-info" style="font-size:11px">${escapeHtml(g.category)}</span>` : '';
+    const d = g.created_at ? (g.created_at+'').slice(0,10) : '';
+    const delBtn = currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171;padding:4px 10px" onclick="delGame('${g.id}')">ลบ</button>` : '';
+    return `<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:rgba(31,41,55,.5);border:1px solid rgba(255,255,255,.08);">
+      <div class="flex items-start justify-between gap-2">
+        <div class="font-semibold text-base text-white truncate" style="flex:1">${escapeHtml(g.name||'')}</div>
+        ${cat}
+      </div>
+      <div class="text-xs text-slate-400">ราคาขาย</div>
+      <div class="text-xl font-bold text-cyan-300">${priceTxt}</div>
+      <div class="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
+        <span class="text-xs text-slate-500">${d}</span>
+        ${delBtn}
+      </div>
+    </div>`;
   }).join('');
   document.getElementById('games-empty').classList.toggle('hidden', list.length>0);
 
@@ -1480,10 +1538,11 @@ function renderGames(){
     fg.addEventListener('submit', async e=>{
       e.preventDefault();
       const fd = new FormData(fg); const obj = Object.fromEntries(fd.entries());
+      obj.price = parseFloat(obj.price)||0;
       obj.created_by = currentUser.id;
       const { error } = await supa.from('games').upsert(obj, {onConflict:'name'});
       if(error){ alert('เพิ่มล้มเหลว: '+error.message); return; }
-      fg.reset(); toast('✅ เพิ่มเกมแล้ว');
+      fg.reset(); toast('✅ เพิ่มเกม / สินค้าแล้ว');
     });
   }
 }

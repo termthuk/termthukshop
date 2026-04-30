@@ -202,6 +202,7 @@
                   <option value="razer">Razer Gold</option>
                   <option value="mycard">Mycard</option>
                   <option value="usdt">USDT / PHP</option>
+                  <option value="xbox">Xbox</option>
                 </optgroup>
                 <optgroup label="💳 ยอดฝากเครดิต" id="topup-supply-group">
                   <option value="supply:จอนชาวไร่">จอนชาวไร่</option>
@@ -243,6 +244,7 @@
             <option value="">ทุกสต๊อก</option>
             <option value="itunes">iTunes</option><option value="razer">Razer</option>
             <option value="mycard">Mycard</option><option value="usdt">USDT/PHP</option>
+            <option value="xbox">Xbox</option>
             <option value="none">เติมตรง</option>
           </select>
           <button class="btn btn-ghost" onclick="exportXLSX()">📊 Export Excel</button>
@@ -269,6 +271,7 @@
         <div class="tab" data-stock="razer">🟢 Razer</div>
         <div class="tab" data-stock="mycard">🟡 Mycard</div>
         <div class="tab" data-stock="usdt">💱 USDT / PHP</div>
+        <div class="tab" data-stock="xbox">🎮 Xbox</div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div class="card"><div class="text-xs text-slate-400">มูลค่ารวม</div><div id="stock-sum-qty" class="text-xl font-bold">0</div></div>
@@ -1058,12 +1061,13 @@ function renderOverview(){
     {label:'กำไร',  data:dP, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.20)', fill:false, tension:.3},
   ]);
 
-  const mix = {iTunes:0,Razer:0,Mycard:0,USDT:0,'เติมตรง':0};
+  const mix = {iTunes:0,Razer:0,Mycard:0,USDT:0,Xbox:0,'เติมตรง':0};
   tx.forEach(t=>{
     if(t.stock_type==='itunes') mix.iTunes += +t.cost||0;
     else if(t.stock_type==='razer') mix.Razer += +t.cost||0;
     else if(t.stock_type==='mycard') mix.Mycard += +t.cost||0;
     else if(t.stock_type==='usdt') mix.USDT += +t.cost||0;
+    else if(t.stock_type==='xbox') mix.Xbox += +t.cost||0;
     else mix['เติมตรง'] += +t.cost||0;
   });
   drawDoughnut('chart-stockmix', Object.keys(mix), Object.values(mix));
@@ -1137,7 +1141,7 @@ function fillStockOptions(){
   const current = sel.value;
   // refresh stock group labels with remaining
   const stockGroup = document.getElementById('topup-stock-group');
-  const stockTypes = [['itunes','iTunes'],['razer','Razer Gold'],['mycard','Mycard'],['usdt','USDT / PHP']];
+  const stockTypes = [['itunes','iTunes'],['razer','Razer Gold'],['mycard','Mycard'],['usdt','USDT / PHP'],['xbox','Xbox']];
   stockGroup.innerHTML = stockTypes.map(([k,n])=>{
     const r = stockRemaining(k);
     return `<option value="${k}">${n} — เหลือ ${fmt(r)}</option>`;
@@ -1243,7 +1247,7 @@ document.getElementById('hist-search').addEventListener('input', renderHistory);
 document.getElementById('hist-stock').addEventListener('change', renderHistory);
 function stockLabel(k){
   if(k && k.startsWith('supply:')) return '💳 '+k.slice(7);
-  return ({itunes:'iTunes', razer:'Razer', mycard:'Mycard', usdt:'USDT/PHP', none:'เติมตรง'})[k]||'-';
+  return ({itunes:'iTunes', razer:'Razer', mycard:'Mycard', usdt:'USDT/PHP', xbox:'Xbox', none:'เติมตรง'})[k]||'-';
 }
 function exportTxRows(){
   // Apply current date filter + search + stock filter (what user sees)
@@ -1306,8 +1310,8 @@ function exportXLSX(){
    STOCK
    ============================================================ */
 let activeStock = 'itunes';
-const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard:'Mycard', usdt:'USDT / PHP'};
-const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($)', razer:'มูลค่าหน้าบัตร ($)', mycard:'มูลค่า / point', usdt:'จำนวน (USDT/PHP)'};
+const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard:'Mycard', usdt:'USDT / PHP', xbox:'Xbox'};
+const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($)', razer:'มูลค่าหน้าบัตร ($)', mycard:'มูลค่า / point', usdt:'จำนวน (USDT/PHP)', xbox:'มูลค่าหน้าบัตร ($)'};
 document.querySelectorAll('[data-stock]').forEach(el=>{
   el.addEventListener('click',()=>{
     document.querySelectorAll('[data-stock]').forEach(t=>t.classList.remove('active'));

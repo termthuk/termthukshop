@@ -255,7 +255,7 @@
             <thead><tr>
               <th>วันที่</th><th>ผู้ซื้อ</th><th>ผู้ขาย</th><th>เกม</th><th>ช่องทาง</th>
               <th>สต๊อก</th><th class="text-right">ต้นทุน</th><th class="text-right">ยอดขาย</th>
-              <th class="text-right">กำไร</th><th>หมายเหตุ</th>
+              <th class="text-right">กำไร</th><th>หมายเหตุ</th><th></th>
             </tr></thead>
             <tbody id="hist-body"></tbody>
           </table>
@@ -1188,6 +1188,7 @@ function renderHistory(){
     return true;
   });
   const body = document.getElementById('hist-body');
+  const isAdmin = currentRole === 'admin';
   body.innerHTML = rows.map(t=>{
     const p = (+t.sales||0)-(+t.cost||0);
     return `<tr>
@@ -1200,9 +1201,19 @@ function renderHistory(){
       <td class="text-right text-cyan-300">${fmt(t.sales)}</td>
       <td class="text-right ${p>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(p)}</td>
       <td class="text-slate-500 text-xs">${escapeHtml(t.note||'')}</td>
+      <td>${isAdmin ? `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delTransaction('${t.id}')">ลบ</button>` : ''}</td>
     </tr>`;
   }).join('');
   document.getElementById('hist-empty').classList.toggle('hidden', rows.length>0);
+}
+async function delTransaction(id){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบประวัติได้'); return; }
+  const tx = state.transactions.find(t=>t.id===id);
+  const desc = tx ? `${tx.game||''} • ${tx.buyer||''} • ${fmt(tx.sales)}` : '';
+  if(!confirm(`ลบรายการนี้?\n${desc}\n\n⚠️ การลบจะส่งผลให้ยอดคงเหลือสต๊อก/ยอดฝากเครดิตเปลี่ยน`)) return;
+  const { error } = await supa.from('transactions').delete().eq('id', id);
+  if(error){ alert('ลบล้มเหลว: '+error.message); return; }
+  toast('🗑️ ลบประวัติการขายแล้ว');
 }
 document.getElementById('hist-search').addEventListener('input', renderHistory);
 document.getElementById('hist-stock').addEventListener('change', renderHistory);

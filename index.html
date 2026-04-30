@@ -73,11 +73,6 @@
       </div>
     </div>
 
-    <div id="login-tabs" class="flex gap-2 mb-4">
-      <button class="tab active" data-mode="signin">เข้าสู่ระบบ</button>
-      <button class="tab" data-mode="signup">สมัครใหม่</button>
-    </div>
-
     <form id="login-form" class="space-y-3">
       <div>
         <label class="text-xs text-slate-400">Email</label>
@@ -85,15 +80,16 @@
       </div>
       <div>
         <label class="text-xs text-slate-400">Password</label>
-        <input class="input" type="password" name="password" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6" autocomplete="current-password">
+        <input class="input" type="password" name="password" placeholder="รหัสผ่าน" required minlength="6" autocomplete="current-password">
       </div>
       <button id="login-submit" class="btn w-full mt-2">เข้าสู่ระบบ</button>
     </form>
     <div id="login-error" class="hidden mt-3 text-sm text-rose-300 bg-rose-500/10 border border-rose-500/20 rounded-lg p-3"></div>
     <div id="login-info" class="hidden mt-3 text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3"></div>
 
-    <div class="mt-6 pt-4 border-t border-white/10 text-xs text-slate-500 text-center">
-      <div>🔒 ข้อมูลถูกเก็บใน Supabase ส่วนตัวของคุณ — sync ทุกเครื่องที่ล็อกอิน</div>
+    <div class="mt-6 pt-4 border-t border-white/10 text-xs text-slate-500 text-center leading-6">
+      <div>🔒 ระบบนี้สำหรับสมาชิกเท่านั้น</div>
+      <div class="mt-1">หากไม่มีบัญชี ติดต่อ Admin เพื่อขอสร้างให้</div>
     </div>
   </div>
 </div>
@@ -765,17 +761,6 @@ document.getElementById('date-to').addEventListener('change', e=>setDateRange(da
 /* ============================================================
    AUTH
    ============================================================ */
-let authMode = 'signin';
-document.querySelectorAll('#login-tabs .tab').forEach(t=>{
-  t.addEventListener('click', ()=>{
-    document.querySelectorAll('#login-tabs .tab').forEach(x=>x.classList.remove('active'));
-    t.classList.add('active');
-    authMode = t.dataset.mode;
-    document.getElementById('login-submit').textContent = authMode==='signin' ? 'เข้าสู่ระบบ' : 'สมัครใหม่';
-    hideAlerts();
-  });
-});
-
 document.getElementById('login-form').addEventListener('submit', async e=>{
   e.preventDefault();
   hideAlerts();
@@ -784,24 +769,13 @@ document.getElementById('login-form').addEventListener('submit', async e=>{
   const btn = document.getElementById('login-submit');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังดำเนินการ...';
   try {
-    let res;
-    if(authMode==='signup'){
-      res = await supa.auth.signUp({ email, password });
-      if(res.error) throw res.error;
-      if(res.data.user && !res.data.session){
-        showInfo('✉️ ส่งอีเมลยืนยันไปที่ '+email+' แล้ว — เปิดเมล กดยืนยัน แล้วกลับมา login');
-      } else {
-        showInfo('✅ สมัครสำเร็จ');
-      }
-    } else {
-      res = await supa.auth.signInWithPassword({ email, password });
-      if(res.error) throw res.error;
-    }
+    const res = await supa.auth.signInWithPassword({ email, password });
+    if(res.error) throw res.error;
   } catch(err){
     showError(translateAuthError(err.message));
   } finally {
     btn.disabled = false;
-    btn.textContent = authMode==='signin' ? 'เข้าสู่ระบบ' : 'สมัครใหม่';
+    btn.textContent = 'เข้าสู่ระบบ';
   }
 });
 

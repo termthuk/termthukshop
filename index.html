@@ -1750,38 +1750,27 @@ async function addUserSubmit(e){
   const full_name = (fd.get('full_name')||'').trim();
   const role = fd.get('role') || 'staff';
   if(!/^[a-z0-9_.\-]+$/.test(username)){ alert('ชื่อผู้ใช้ใช้ได้เฉพาะ a-z, 0-9, _, -, .'); return; }
-  const email = usernameToEmail(username);
   const btn = f.querySelector('button[type=submit]');
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังสร้าง...';
   try {
-    // Save current admin session
-    const { data: sessData } = await supa.auth.getSession();
-    const adminTokens = sessData?.session;
-    if(!adminTokens){ throw new Error('ไม่พบ session ของ admin'); }
-
-    // Create new user via signUp
-    const { data: signUpData, error: signUpErr } = await supa.auth.signUp({email, password});
-    if(signUpErr) throw signUpErr;
-    const newId = signUpData?.user?.id;
-
-    // Restore admin session immediately
-    await supa.auth.setSession({
-      access_token: adminTokens.access_token,
-      refresh_token: adminTokens.refresh_token
+    const { data, error } = await supa.rpc('admin_create_user', {
+      p_username: username,
+      p_password: password,
+      p_role: role,
+      p_full_name: full_name
     });
-    currentUser = (await supa.auth.getUser()).data.user;
-
-    // Insert profile for new user (use admin context)
-    if(newId){
-      await supa.from('user_profiles').upsert({
-        id: newId, email, full_name, role, active:true
-      }, {onConflict:'id'});
-      await supa.from('login_logs').insert({
-        user_id: newId, email, event:'signup', user_agent:'admin-created'
-      });
+    if(error) throw error;
+    if(data && data.success === false){
+      const map = {
+        unauthorized: 'คุณไม่มีสิทธิ์สร้างบัญชี',
+        invalid_username: 'ชื่อผู้ใช้ไม่ถูกต้อง',
+        password_too_short: 'รหัสผ่านสั้นเกินไป (ต้องอย่างน้อย 6 ตัว)',
+        user_exists: 'ชื่อผู้ใช้นี้มีอยู่แล้ว'
+      };
+      throw new Error(map[data.error] || data.error);
     }
     f.reset();
-    toast('✅ สร้างบัญชี '+username+' เรียบร้อย');
+    toast('✅ สร้างบัญชี '+username+' เรียบร้อย — login ได้ทันที');
     await loadAllData();
     renderUsers();
   } catch(err){

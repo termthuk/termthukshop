@@ -867,7 +867,7 @@ async function loadAllData(){
     supa.from('supplies').select('*').order('date', {ascending:false}),
     supa.from('games').select('*').order('name'),
     supa.from('credits').select('*').order('date', {ascending:false}),
-    supa.from('shareholders').select('*').order('name'),
+    supa.from('shareholders').select('*').order('sort_order').order('name'),
     supa.from('expenses').select('*').order('date', {ascending:false}),
     supa.from('assets').select('*').order('date', {ascending:false}),
     supa.from('user_profiles').select('*').order('email'),
@@ -1567,7 +1567,7 @@ async function delExpense(id){
    CAPITAL / SHAREHOLDERS
    ============================================================ */
 function renderCapital(){
-  const list = state.shareholders.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const list = state.shareholders.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || (a.name||'').localeCompare(b.name||''));
   document.getElementById('capital-body').innerHTML = list.map(s=>`
     <tr>
       <td class="font-medium">${escapeHtml(s.name||'')}</td>
@@ -1673,7 +1673,7 @@ function renderDividend(){
   netEl.textContent = fmt(net);
   netEl.className = 'text-xl font-bold '+(net>=0?'text-emerald-300':'text-rose-300');
 
-  const list = state.shareholders.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const list = state.shareholders.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0) || (a.name||'').localeCompare(b.name||''));
   document.getElementById('dividend-body').innerHTML = list.map(s=>{
     const pct = +s.percentage||0;
     const share = net * pct / 100;

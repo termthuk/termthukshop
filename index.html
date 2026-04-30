@@ -114,6 +114,10 @@
       <div class="menu-item" data-page="history"><span>📜</span><span>ประวัติการขาย</span></div>
       <div class="menu-item" data-page="stock"><span>📦</span><span>สต๊อก / Rate</span></div>
       <div class="menu-item" data-page="supply"><span>💳</span><span>ยอดฝากเครดิต</span></div>
+      <div class="menu-item" data-page="credit"><span>📒</span><span>Credit / ค้างชำระ</span></div>
+      <div class="menu-item" data-page="expense"><span>💸</span><span>ค่าใช้จ่าย</span></div>
+      <div class="menu-item" data-page="capital"><span>🏦</span><span>ต้นทุนเริ่ม</span></div>
+      <div class="menu-item" data-page="dividend"><span>💎</span><span>ปันผลรายเดือน</span></div>
       <div class="menu-item" data-page="analyze"><span>🧠</span><span>วิเคราะห์ SKU</span></div>
       <div class="menu-item" data-page="games"><span>🎯</span><span>รายชื่อเกม</span></div>
     </nav>
@@ -390,6 +394,155 @@
       </div>
     </section>
 
+    <!-- Credit / ค้างชำระ -->
+    <section id="page-credit" class="page hidden fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ยอดขายรวม</div><div id="credit-sum-sales" class="text-2xl font-bold text-cyan-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ต้นทุนรวม</div><div id="credit-sum-cost" class="text-2xl font-bold text-amber-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">กำไรรวม</div><div id="credit-sum-profit" class="text-2xl font-bold text-emerald-300">฿0</div></div>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ค้างชำระ</div><div id="credit-unpaid" class="text-lg font-bold text-rose-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ชำระแล้ว</div><div id="credit-paid" class="text-lg font-bold text-emerald-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">จำนวนรายการ</div><div id="credit-count" class="text-lg font-bold">0</div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <h3 class="font-semibold">📒 รายการ Credit</h3>
+            <div class="flex gap-2">
+              <select id="credit-filter" class="select" style="max-width:160px">
+                <option value="">ทั้งหมด</option>
+                <option value="unpaid">ค้างชำระ</option>
+                <option value="paid">ชำระแล้ว</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr>
+                <th>วันที่</th><th>ชื่อ</th><th>เกม</th>
+                <th class="text-right">ราคาขาย</th><th class="text-right">ต้นทุน</th><th class="text-right">กำไร</th>
+                <th>สถานะ</th><th></th>
+              </tr></thead>
+              <tbody id="credit-body"></tbody>
+            </table>
+          </div>
+          <div id="credit-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีรายการ Credit</div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่ม Credit</h3>
+          <form id="form-credit" class="space-y-3">
+            <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
+            <div><label class="text-xs text-slate-400">ชื่อลูกค้า</label><input class="input" name="customer" required></div>
+            <div><label class="text-xs text-slate-400">เกม</label><input class="input" name="game" list="games-list" required></div>
+            <div><label class="text-xs text-slate-400">ราคาขาย (฿)</label><input class="input" type="number" step="0.01" min="0" name="sales" required></div>
+            <div><label class="text-xs text-slate-400">ต้นทุน (฿)</label><input class="input" type="number" step="0.01" min="0" name="cost" required></div>
+            <div><label class="text-xs text-slate-400">หมายเหตุ</label><input class="input" name="note"></div>
+            <button class="btn w-full" type="submit">บันทึก</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ค่าใช้จ่าย -->
+    <section id="page-expense" class="page hidden fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ค่าใช้จ่ายรวม</div><div id="expense-total" class="text-2xl font-bold text-rose-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">เดือนนี้</div><div id="expense-month" class="text-2xl font-bold text-amber-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">จำนวนรายการ</div><div id="expense-count" class="text-2xl font-bold">0</div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <h3 class="font-semibold mb-3">💸 รายการค่าใช้จ่าย</h3>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th class="text-right">จำนวนเงิน</th><th>หมายเหตุ</th><th></th></tr></thead>
+              <tbody id="expense-body"></tbody>
+            </table>
+          </div>
+          <div id="expense-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีค่าใช้จ่าย</div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่มค่าใช้จ่าย</h3>
+          <form id="form-expense" class="space-y-3">
+            <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
+            <div><label class="text-xs text-slate-400">รายการ</label><input class="input" name="item" required></div>
+            <div><label class="text-xs text-slate-400">หมวด</label>
+              <select class="select" name="category">
+                <option>ค่าเช่า</option><option>ค่าน้ำ/ไฟ</option><option>ค่าอินเทอร์เน็ต</option>
+                <option>เงินเดือน</option><option>ค่าโฆษณา</option><option>ค่าธรรมเนียม</option>
+                <option>อุปกรณ์</option><option>อื่น ๆ</option>
+              </select>
+            </div>
+            <div><label class="text-xs text-slate-400">จำนวนเงิน (฿)</label><input class="input" type="number" step="0.01" min="0" name="amount" required></div>
+            <div><label class="text-xs text-slate-400">หมายเหตุ</label><input class="input" name="note"></div>
+            <button class="btn w-full" type="submit">บันทึก</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ต้นทุนเริ่ม / ผู้ถือหุ้น -->
+    <section id="page-capital" class="page hidden fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ต้นทุนเริ่มรวม</div><div id="capital-total" class="text-2xl font-bold text-cyan-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">จำนวนผู้ถือหุ้น</div><div id="capital-count" class="text-2xl font-bold">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">รวมสัดส่วน</div><div id="capital-pct-sum" class="text-2xl font-bold">0%</div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <h3 class="font-semibold mb-3">🏦 รายชื่อผู้ถือหุ้น</h3>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr><th>ชื่อ</th><th class="text-right">สัดส่วน (%)</th><th class="text-right">ต้นทุนเริ่ม (฿)</th><th>หมายเหตุ</th><th></th></tr></thead>
+              <tbody id="capital-body"></tbody>
+            </table>
+          </div>
+          <div id="capital-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ถือหุ้น</div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่มผู้ถือหุ้น</h3>
+          <form id="form-capital" class="space-y-3">
+            <div><label class="text-xs text-slate-400">ชื่อ</label><input class="input" name="name" required></div>
+            <div><label class="text-xs text-slate-400">สัดส่วน (%)</label><input class="input" type="number" step="0.01" min="0" max="100" name="percentage" required></div>
+            <div><label class="text-xs text-slate-400">ต้นทุนเริ่ม (฿)</label><input class="input" type="number" step="0.01" min="0" name="capital"></div>
+            <div><label class="text-xs text-slate-400">หมายเหตุ</label><input class="input" name="note"></div>
+            <button class="btn w-full" type="submit">บันทึก</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ปันผลรายเดือน -->
+    <section id="page-dividend" class="page hidden fade-in">
+      <div class="card mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <h3 class="font-semibold">💎 สรุปปันผลรายเดือน</h3>
+          <div class="flex gap-2 items-center">
+            <label class="text-xs text-slate-400">เดือน</label>
+            <input id="dividend-month" type="month" class="input" style="max-width:160px">
+          </div>
+        </div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ยอดขาย</div><div id="div-sales" class="text-xl font-bold text-cyan-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ต้นทุน</div><div id="div-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ค่าใช้จ่าย</div><div id="div-expense" class="text-xl font-bold text-rose-300">฿0</div></div>
+        <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">กำไรสุทธิ</div><div id="div-net" class="text-xl font-bold text-emerald-300">฿0</div></div>
+      </div>
+      <div class="card">
+        <h3 class="font-semibold mb-3">📊 ปันผลผู้ถือหุ้น</h3>
+        <div class="overflow-x-auto scroll-thin">
+          <table>
+            <thead><tr><th>ชื่อ</th><th class="text-right">สัดส่วน (%)</th><th class="text-right">ปันผล (฿)</th></tr></thead>
+            <tbody id="dividend-body"></tbody>
+          </table>
+        </div>
+        <div id="dividend-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ถือหุ้น — ไปเพิ่มที่เมนู "ต้นทุนเริ่ม"</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -407,7 +560,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    ============================================================ */
 let supa = null;
 let currentUser = null;
-const state = { transactions:[], stocks:[], supplies:[], games:[] };
+const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[] };
 
 document.getElementById('today').textContent = new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
@@ -506,7 +659,9 @@ async function showApp(){
   document.getElementById('user-info').textContent = '👤 '+currentUser.email;
   await loadAllData();
   subscribeRealtime();
-  refreshPage('overview');
+  let saved = 'overview';
+  try{ saved = localStorage.getItem('tts_active_page') || 'overview'; }catch(e){}
+  setActivePage(saved);
 }
 
 /* ============================================================
@@ -514,21 +669,27 @@ async function showApp(){
    ============================================================ */
 async function loadAllData(){
   toast('⏳ โหลดข้อมูล...');
-  const [tx, st, sp, gm] = await Promise.all([
+  const [tx, st, sp, gm, cr, sh, ex] = await Promise.all([
     supa.from('transactions').select('*').order('date', {ascending:false}),
     supa.from('stocks').select('*').order('date', {ascending:false}),
     supa.from('supplies').select('*').order('date', {ascending:false}),
     supa.from('games').select('*').order('name'),
+    supa.from('credits').select('*').order('date', {ascending:false}),
+    supa.from('shareholders').select('*').order('name'),
+    supa.from('expenses').select('*').order('date', {ascending:false}),
   ]);
   state.transactions = tx.data || [];
   state.stocks = st.data || [];
   state.supplies = sp.data || [];
   state.games = gm.data || [];
+  state.credits = cr.data || [];
+  state.shareholders = sh.data || [];
+  state.expenses = ex.data || [];
   toast('✅ โหลดข้อมูลเรียบร้อย');
 }
 
 function subscribeRealtime(){
-  ['transactions','stocks','supplies','games'].forEach(table=>{
+  ['transactions','stocks','supplies','games','credits','shareholders','expenses'].forEach(table=>{
     supa.channel('rt-'+table)
       .on('postgres_changes', { event:'*', schema:'public', table }, payload=>{
         applyRealtime(table, payload);
@@ -563,20 +724,28 @@ const PAGES = {
   history:{title:'ประวัติการขาย', sub:'รายการขายทั้งหมด'},
   stock:{title:'สต๊อก / Rate', sub:'จัดการสต๊อก'},
   supply:{title:'ยอดฝากเครดิต', sub:'รายการเครดิตที่ฝากกับ Supplier'},
+  credit:{title:'Credit / ค้างชำระ', sub:'รายการเครดิตลูกค้า'},
+  expense:{title:'ค่าใช้จ่าย', sub:'รายการค่าใช้จ่ายร้าน'},
+  capital:{title:'ต้นทุนเริ่ม', sub:'รายชื่อผู้ถือหุ้นและสัดส่วน'},
+  dividend:{title:'ปันผลรายเดือน', sub:'สรุปกำไรและปันผลรายเดือน'},
   analyze:{title:'วิเคราะห์ SKU', sub:'บทวิเคราะห์เกมขายดี'},
   games:{title:'รายชื่อเกม', sub:'รายการเกมและคำนวนราคา'},
 };
 document.getElementById('menu').addEventListener('click', e=>{
   const item = e.target.closest('.menu-item'); if(!item) return;
-  document.querySelectorAll('.menu-item').forEach(m=>m.classList.remove('active'));
-  item.classList.add('active');
-  const page = item.dataset.page;
+  setActivePage(item.dataset.page);
+});
+function setActivePage(page){
+  if(!PAGES[page]) page = 'overview';
+  document.querySelectorAll('.menu-item').forEach(m=>m.classList.toggle('active', m.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
-  document.getElementById('page-'+page).classList.remove('hidden');
+  const pageEl = document.getElementById('page-'+page);
+  if(pageEl) pageEl.classList.remove('hidden');
   document.getElementById('page-title').textContent = PAGES[page].title;
   document.getElementById('page-sub').textContent = PAGES[page].sub;
+  try{ localStorage.setItem('tts_active_page', page); }catch(e){}
   refreshPage(page);
-});
+}
 function currentPage(){ return document.querySelector('.menu-item.active')?.dataset.page || 'overview'; }
 function refreshPage(p){
   if(p==='overview') renderOverview();
@@ -584,6 +753,10 @@ function refreshPage(p){
   if(p==='history') renderHistory();
   if(p==='stock') renderStock();
   if(p==='supply') renderSupply();
+  if(p==='credit') renderCredit();
+  if(p==='expense') renderExpense();
+  if(p==='capital') renderCapital();
+  if(p==='dividend') renderDividend();
   if(p==='analyze') renderAnalyze();
   if(p==='games') renderGames();
 }
@@ -1059,6 +1232,196 @@ function runCalc(){
   document.getElementById('calc-price').textContent = fmt(price);
   document.getElementById('calc-profit').textContent = fmt(price-c);
 }
+
+/* ============================================================
+   CREDIT
+   ============================================================ */
+function renderCredit(){
+  const filter = document.getElementById('credit-filter').value;
+  const list = state.credits.filter(c=>!filter || c.status===filter);
+  document.getElementById('credit-body').innerHTML = list.map(c=>{
+    const profit = (+c.sales||0) - (+c.cost||0);
+    const pill = c.status==='paid' ? '<span class="pill pill-good">ชำระแล้ว</span>' : '<span class="pill pill-warn">ค้างชำระ</span>';
+    const btnText = c.status==='paid' ? 'ทำเป็นค้าง' : 'ทำเป็นชำระ';
+    const btnClass = c.status==='paid' ? 'btn-ghost' : 'btn';
+    return `<tr>
+      <td class="text-slate-400 text-xs whitespace-nowrap">${(c.date||'').replace('T',' ').slice(0,16)}</td>
+      <td>${escapeHtml(c.customer||'')}</td>
+      <td class="font-medium">${escapeHtml(c.game||'')}</td>
+      <td class="text-right text-cyan-300">${fmt(c.sales)}</td>
+      <td class="text-right text-amber-300">${fmt(c.cost)}</td>
+      <td class="text-right ${profit>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(profit)}</td>
+      <td>${pill}</td>
+      <td class="flex gap-1">
+        <button class="${btnClass} text-xs" onclick="toggleCreditStatus('${c.id}','${c.status}')">${btnText}</button>
+        <button class="btn btn-ghost text-xs" onclick="delCredit('${c.id}')">ลบ</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('credit-empty').classList.toggle('hidden', list.length>0);
+  const sumSales = state.credits.reduce((a,b)=>a+(+b.sales||0),0);
+  const sumCost = state.credits.reduce((a,b)=>a+(+b.cost||0),0);
+  const sumProfit = sumSales - sumCost;
+  const unpaid = state.credits.filter(c=>c.status==='unpaid').reduce((a,b)=>a+(+b.sales||0),0);
+  const paid = state.credits.filter(c=>c.status==='paid').reduce((a,b)=>a+(+b.sales||0),0);
+  document.getElementById('credit-sum-sales').textContent = fmt(sumSales);
+  document.getElementById('credit-sum-cost').textContent = fmt(sumCost);
+  document.getElementById('credit-sum-profit').textContent = fmt(sumProfit);
+  document.getElementById('credit-sum-profit').className = 'text-2xl font-bold '+(sumProfit>=0?'text-emerald-300':'text-rose-300');
+  document.getElementById('credit-unpaid').textContent = fmt(unpaid);
+  document.getElementById('credit-paid').textContent = fmt(paid);
+  document.getElementById('credit-count').textContent = state.credits.length;
+
+  const f = document.getElementById('form-credit');
+  if(!f.dataset.bound){
+    f.dataset.bound='1';
+    f.querySelector('[name=date]').value = todayStr();
+    f.addEventListener('submit', async e=>{
+      e.preventDefault();
+      const fd = new FormData(f); const obj = Object.fromEntries(fd.entries());
+      obj.sales = parseFloat(obj.sales)||0; obj.cost = parseFloat(obj.cost)||0;
+      obj.status = 'unpaid'; obj.created_by = currentUser.id;
+      const { error } = await supa.from('credits').insert(obj);
+      if(error){ alert('บันทึกล้มเหลว: '+error.message); return; }
+      f.reset(); f.querySelector('[name=date]').value = todayStr();
+      toast('✅ เพิ่ม Credit เรียบร้อย');
+    });
+  }
+}
+document.getElementById('credit-filter').addEventListener('change', renderCredit);
+async function toggleCreditStatus(id, current){
+  const next = current==='paid' ? 'unpaid' : 'paid';
+  const update = { status: next, paid_at: next==='paid' ? new Date().toISOString() : null };
+  const { error } = await supa.from('credits').update(update).eq('id', id);
+  if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
+  toast(next==='paid' ? '✅ ทำเป็นชำระแล้ว' : '↩️ คืนเป็นค้างชำระ');
+}
+async function delCredit(id){
+  if(!confirm('ลบรายการ Credit นี้?')) return;
+  const { error } = await supa.from('credits').delete().eq('id', id);
+  if(error) alert('ลบล้มเหลว: '+error.message);
+}
+
+/* ============================================================
+   EXPENSE
+   ============================================================ */
+function renderExpense(){
+  const list = state.expenses;
+  document.getElementById('expense-body').innerHTML = list.map(e=>`
+    <tr>
+      <td class="text-slate-400 text-xs">${escapeHtml(e.date||'')}</td>
+      <td>${escapeHtml(e.item||'')}</td>
+      <td><span class="pill pill-info">${escapeHtml(e.category||'-')}</span></td>
+      <td class="text-right text-rose-300 font-semibold">${fmt(e.amount)}</td>
+      <td class="text-slate-500 text-xs">${escapeHtml(e.note||'')}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delExpense('${e.id}')">ลบ</button></td>
+    </tr>`).join('');
+  document.getElementById('expense-empty').classList.toggle('hidden', list.length>0);
+  const total = list.reduce((a,b)=>a+(+b.amount||0),0);
+  const ym = new Date().toISOString().slice(0,7);
+  const monthSum = list.filter(e=>(e.date||'').startsWith(ym)).reduce((a,b)=>a+(+b.amount||0),0);
+  document.getElementById('expense-total').textContent = fmt(total);
+  document.getElementById('expense-month').textContent = fmt(monthSum);
+  document.getElementById('expense-count').textContent = list.length;
+
+  const f = document.getElementById('form-expense');
+  if(!f.dataset.bound){
+    f.dataset.bound='1';
+    f.querySelector('[name=date]').value = todayStr();
+    f.addEventListener('submit', async ev=>{
+      ev.preventDefault();
+      const fd = new FormData(f); const obj = Object.fromEntries(fd.entries());
+      obj.amount = parseFloat(obj.amount)||0; obj.created_by = currentUser.id;
+      const { error } = await supa.from('expenses').insert(obj);
+      if(error){ alert('บันทึกล้มเหลว: '+error.message); return; }
+      f.reset(); f.querySelector('[name=date]').value = todayStr();
+      toast('✅ เพิ่มค่าใช้จ่ายเรียบร้อย');
+    });
+  }
+}
+async function delExpense(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  const { error } = await supa.from('expenses').delete().eq('id', id);
+  if(error) alert('ลบล้มเหลว: '+error.message);
+}
+
+/* ============================================================
+   CAPITAL / SHAREHOLDERS
+   ============================================================ */
+function renderCapital(){
+  const list = state.shareholders.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  document.getElementById('capital-body').innerHTML = list.map(s=>`
+    <tr>
+      <td class="font-medium">${escapeHtml(s.name||'')}</td>
+      <td class="text-right text-cyan-300">${(+s.percentage||0).toFixed(2)}%</td>
+      <td class="text-right text-amber-300">${fmt(s.capital)}</td>
+      <td class="text-slate-500 text-xs">${escapeHtml(s.note||'')}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delShareholder('${s.id}')">ลบ</button></td>
+    </tr>`).join('');
+  document.getElementById('capital-empty').classList.toggle('hidden', list.length>0);
+  const totalCap = list.reduce((a,b)=>a+(+b.capital||0),0);
+  const totalPct = list.reduce((a,b)=>a+(+b.percentage||0),0);
+  document.getElementById('capital-total').textContent = fmt(totalCap);
+  document.getElementById('capital-count').textContent = list.length;
+  const pctEl = document.getElementById('capital-pct-sum');
+  pctEl.textContent = totalPct.toFixed(2)+'%';
+  pctEl.className = 'text-2xl font-bold '+(Math.abs(totalPct-100)<0.5 ? 'text-emerald-300' : 'text-amber-300');
+
+  const f = document.getElementById('form-capital');
+  if(!f.dataset.bound){
+    f.dataset.bound='1';
+    f.addEventListener('submit', async ev=>{
+      ev.preventDefault();
+      const fd = new FormData(f); const obj = Object.fromEntries(fd.entries());
+      obj.percentage = parseFloat(obj.percentage)||0;
+      obj.capital = parseFloat(obj.capital)||0;
+      obj.created_by = currentUser.id;
+      const { error } = await supa.from('shareholders').upsert(obj, {onConflict:'name'});
+      if(error){ alert('บันทึกล้มเหลว: '+error.message); return; }
+      f.reset(); toast('✅ บันทึกผู้ถือหุ้นเรียบร้อย');
+    });
+  }
+}
+async function delShareholder(id){
+  if(!confirm('ลบผู้ถือหุ้นนี้?')) return;
+  const { error } = await supa.from('shareholders').delete().eq('id', id);
+  if(error) alert('ลบล้มเหลว: '+error.message);
+}
+
+/* ============================================================
+   DIVIDEND
+   ============================================================ */
+function renderDividend(){
+  const monthEl = document.getElementById('dividend-month');
+  if(!monthEl.value) monthEl.value = new Date().toISOString().slice(0,7);
+  const ym = monthEl.value;
+  const inMonth = (d)=>(d||'').startsWith(ym);
+  const tx = state.transactions.filter(t=>inMonth(t.date));
+  const exp = state.expenses.filter(e=>inMonth(e.date));
+  const sales = tx.reduce((a,b)=>a+(+b.sales||0),0);
+  const cost = tx.reduce((a,b)=>a+(+b.cost||0),0);
+  const expenseTotal = exp.reduce((a,b)=>a+(+b.amount||0),0);
+  const net = sales - cost - expenseTotal;
+  document.getElementById('div-sales').textContent = fmt(sales);
+  document.getElementById('div-cost').textContent = fmt(cost);
+  document.getElementById('div-expense').textContent = fmt(expenseTotal);
+  const netEl = document.getElementById('div-net');
+  netEl.textContent = fmt(net);
+  netEl.className = 'text-xl font-bold '+(net>=0?'text-emerald-300':'text-rose-300');
+
+  const list = state.shareholders.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  document.getElementById('dividend-body').innerHTML = list.map(s=>{
+    const pct = +s.percentage||0;
+    const share = net * pct / 100;
+    return `<tr>
+      <td class="font-medium">${escapeHtml(s.name||'')}</td>
+      <td class="text-right text-cyan-300">${pct.toFixed(2)}%</td>
+      <td class="text-right ${share>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(share)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('dividend-empty').classList.toggle('hidden', list.length>0);
+}
+document.getElementById('dividend-month').addEventListener('change', renderDividend);
 
 /* ============================================================
    UTILS

@@ -178,7 +178,7 @@
     <!-- เติมเกม -->
     <section id="page-topup" class="page hidden fade-in">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div class="card lg:col-span-2">
+        <div class="card lg:col-span-2" data-write-only>
           <h3 class="font-semibold mb-4">📝 บันทึกการเติมเกม</h3>
           <form id="form-topup" class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label class="text-xs text-slate-400">วันที่/เวลา</label><input class="input" type="datetime-local" name="date" required></div>
@@ -298,7 +298,7 @@
           </div>
           <div id="stock-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีข้อมูล</div>
         </div>
-        <div class="card">
+        <div class="card" data-write-only>
           <h3 class="font-semibold mb-3">➕ เพิ่มสต๊อก</h3>
           <form id="form-stock" class="space-y-3">
             <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
@@ -337,7 +337,7 @@
           </div>
           <div id="supply-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มียอดฝากเครดิต</div>
         </div>
-        <div class="card">
+        <div class="card" data-write-only>
           <h3 class="font-semibold mb-3">➕ เพิ่มยอดฝากเครดิต</h3>
           <form id="form-supply" class="space-y-3">
             <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
@@ -398,7 +398,7 @@
           </div>
         </div>
       </div>
-      <div class="card mt-4">
+      <div class="card mt-4" data-write-only>
         <h3 class="font-semibold mb-3">➕ เพิ่มเกมใหม่</h3>
         <form id="form-game" class="grid grid-cols-1 md:grid-cols-4 gap-3">
           <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม" required>
@@ -444,7 +444,7 @@
           </div>
           <div id="credit-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีรายการ Credit</div>
         </div>
-        <div class="card">
+        <div class="card" data-write-only>
           <h3 class="font-semibold mb-3">➕ เพิ่ม Credit</h3>
           <form id="form-credit" class="space-y-3">
             <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
@@ -477,7 +477,7 @@
           </div>
           <div id="expense-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีค่าใช้จ่าย</div>
         </div>
-        <div class="card">
+        <div class="card" data-write-only>
           <h3 class="font-semibold mb-3">➕ เพิ่มค่าใช้จ่าย</h3>
           <form id="form-expense" class="space-y-3">
             <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
@@ -591,8 +591,9 @@
             <div><label class="text-xs text-slate-400">ชื่อ (ไม่บังคับ)</label><input class="input" name="full_name"></div>
             <div><label class="text-xs text-slate-400">บทบาท</label>
               <select class="select" name="role">
-                <option value="staff">Member (ทั่วไป)</option>
-                <option value="admin">Admin (ผู้ดูแล)</option>
+                <option value="staff">Member (เพิ่มข้อมูลได้)</option>
+                <option value="viewer">Viewer (ดูอย่างเดียว)</option>
+                <option value="admin">Admin (จัดการทุกอย่าง)</option>
               </select>
             </div>
             <button class="btn w-full" type="submit">➕ สร้างบัญชี</button>
@@ -680,6 +681,13 @@ let currentUser = null;
 let currentRole = 'staff';
 let currentActive = true;
 const MEMBER_PAGES = new Set(['topup','history','stock','credit','games']);
+const ADMIN_ONLY_PAGES = new Set(['capital','users']);
+function canSeePage(page){
+  if(currentRole === 'admin') return true;
+  if(currentRole === 'viewer') return !ADMIN_ONLY_PAGES.has(page);
+  return MEMBER_PAGES.has(page);
+}
+function canWrite(){ return currentRole === 'admin' || currentRole === 'staff'; }
 const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[], user_profiles:[], login_logs:[] };
 const dateFilter = { from:null, to:null };
 const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend','users']);
@@ -839,15 +847,21 @@ async function upsertCurrentProfile(){
 }
 function applyRoleAccess(){
   document.querySelectorAll('.menu-item[data-page]').forEach(m=>{
-    const page = m.dataset.page;
-    const allowed = currentRole === 'admin' || MEMBER_PAGES.has(page);
-    m.classList.toggle('hidden', !allowed);
+    m.classList.toggle('hidden', !canSeePage(m.dataset.page));
+  });
+  // Hide write-only sections for viewer
+  document.querySelectorAll('[data-write-only]').forEach(el=>{
+    el.classList.toggle('hidden', currentRole === 'viewer');
   });
   // Show role badge in user info
   const ui = document.getElementById('user-info');
   if(ui){
-    const badge = currentRole === 'admin' ? ' <span class="pill pill-info" style="margin-left:6px">Admin</span>' : ' <span class="pill pill-warn" style="margin-left:6px">Member</span>';
-    ui.innerHTML = '👤 ' + escapeHtml(displayName(currentUser.email)) + badge;
+    const badgeMap = {
+      admin: '<span class="pill pill-info" style="margin-left:6px">Admin</span>',
+      staff: '<span class="pill pill-warn" style="margin-left:6px">Member</span>',
+      viewer: '<span class="pill pill-good" style="margin-left:6px">Viewer</span>'
+    };
+    ui.innerHTML = '👤 ' + escapeHtml(displayName(currentUser.email)) + ' ' + (badgeMap[currentRole]||'');
   }
 }
 
@@ -950,8 +964,10 @@ document.getElementById('menu').addEventListener('click', e=>{
 });
 function setActivePage(page){
   if(!PAGES[page]) page = 'overview';
-  // Role enforcement: members can only access whitelisted pages
-  if(currentRole !== 'admin' && !MEMBER_PAGES.has(page)) page = 'topup';
+  // Role enforcement
+  if(!canSeePage(page)){
+    page = currentRole === 'viewer' ? 'overview' : 'topup';
+  }
   document.querySelectorAll('.menu-item').forEach(m=>m.classList.toggle('active', m.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   const pageEl = document.getElementById('page-'+page);
@@ -1739,16 +1755,26 @@ function renderUsers(){
     const last = userLastLogin(u.id);
     const lastTxt = last ? new Date(last).toLocaleString('th-TH') : '—';
     const isMe = currentUser && currentUser.id===u.id;
-    const roleBadge = u.role==='admin' ? '<span class="pill pill-info">Admin</span>' : '<span class="pill pill-warn">Member</span>';
+    const roleBadgeMap = {
+      admin: '<span class="pill pill-info">Admin</span>',
+      staff: '<span class="pill pill-warn">Member</span>',
+      viewer: '<span class="pill pill-good">Viewer</span>'
+    };
+    const roleBadge = roleBadgeMap[u.role||'staff'] || roleBadgeMap.staff;
     const activeBadge = u.active===false ? '<span class="pill pill-bad">ปิด</span>' : '<span class="pill pill-good">ใช้งาน</span>';
+    const role = u.role || 'staff';
     return `<tr>
       <td class="font-medium">${escapeHtml(displayName(u.email||''))}${isMe?' <span class="text-xs text-cyan-300">(คุณ)</span>':''}</td>
       <td>${escapeHtml(u.full_name||'-')}</td>
       <td>${roleBadge}</td>
       <td>${activeBadge}</td>
       <td class="text-right text-slate-500 text-xs">${lastTxt}</td>
-      <td class="flex gap-1 flex-wrap">
-        <button class="btn btn-ghost text-xs" onclick="toggleUserRole('${u.id}','${u.role||'staff'}')">เปลี่ยนบทบาท</button>
+      <td class="flex gap-1 flex-wrap items-center">
+        <select class="select text-xs" style="padding:4px 8px;width:auto" onchange="setUserRole('${u.id}', this.value)">
+          <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
+          <option value="staff" ${role==='staff'?'selected':''}>Member</option>
+          <option value="viewer" ${role==='viewer'?'selected':''}>Viewer</option>
+        </select>
         <button class="btn btn-ghost text-xs" onclick="toggleUserActive('${u.id}',${u.active!==false})">${u.active===false?'เปิด':'ปิด'}</button>
         ${isMe ? '' : `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="deleteUser('${u.id}','${escapeHtml(u.email||'')}')">ลบ</button>`}
       </td>
@@ -1818,23 +1844,33 @@ async function deleteUser(id, email){
   await loadAllData();
   renderUsers();
 }
-async function toggleUserRole(id, current){
-  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่เปลี่ยนบทบาทได้'); return; }
-  const next = current==='admin' ? 'staff' : 'admin';
-  // Prevent demoting last admin
-  if(next === 'staff'){
+async function setUserRole(id, next){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่เปลี่ยนบทบาทได้'); renderUsers(); return; }
+  if(!['admin','staff','viewer'].includes(next)){ alert('บทบาทไม่ถูกต้อง'); renderUsers(); return; }
+  const target = state.user_profiles.find(u=>u.id===id);
+  if(!target){ renderUsers(); return; }
+  if(target.role === next) return; // no change
+  // Prevent removing last admin
+  if(target.role === 'admin' && next !== 'admin'){
     const adminCount = state.user_profiles.filter(u=>u.role==='admin').length;
-    if(adminCount <= 1){ alert('⚠️ ไม่สามารถลด Admin คนสุดท้ายได้ — ต้องมี Admin อย่างน้อย 1 คนเสมอ'); return; }
+    if(adminCount <= 1){
+      alert('⚠️ ไม่สามารถลด Admin คนสุดท้ายได้ — ต้องมี Admin อย่างน้อย 1 คนเสมอ');
+      renderUsers();
+      return;
+    }
   }
-  if(!confirm(`เปลี่ยนบทบาทเป็น "${next==='admin'?'Admin':'Member'}"?`)) return;
+  const labelMap = {admin:'Admin', staff:'Member', viewer:'Viewer'};
+  if(!confirm(`เปลี่ยนบทบาทเป็น "${labelMap[next]}"?`)){ renderUsers(); return; }
   const { error } = await supa.from('user_profiles').update({role:next, updated_at:new Date().toISOString()}).eq('id', id);
-  if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
-  toast('✅ เปลี่ยนบทบาทแล้ว');
-  // If admin demoted themselves, refresh access
+  if(error){ alert('อัปเดตล้มเหลว: '+error.message); renderUsers(); return; }
+  toast('✅ เปลี่ยนบทบาทเป็น '+labelMap[next]+' แล้ว');
+  // If admin changed their own role, refresh access immediately
   if(currentUser && currentUser.id === id){
     currentRole = next;
     applyRoleAccess();
-    if(next !== 'admin') setActivePage('topup');
+    if(!canSeePage(currentPage())){
+      setActivePage(next === 'viewer' ? 'overview' : 'topup');
+    }
   }
 }
 async function toggleUserActive(id, current){

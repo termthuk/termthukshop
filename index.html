@@ -1263,7 +1263,7 @@ function renderStock(){
       <td class="text-right">${per? fmtN(per):'-'}</td>
       <td>${escapeHtml(s.source||'')}</td>
       <td class="text-slate-500 text-xs">${escapeHtml(s.note||'')}</td>
-      <td><button class="btn btn-ghost text-xs" onclick="delStock('${s.id}')">ลบ</button></td>
+      <td>${currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delStock('${s.id}')">ลบ</button>` : ''}</td>
     </tr>`;
   }).join('');
   document.getElementById('stock-empty').classList.toggle('hidden', list.length>0);
@@ -1309,6 +1309,7 @@ function renderStock(){
   }
 }
 async function delStock(id){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบได้'); return; }
   if(!confirm('ลบรายการนี้?')) return;
   const { error } = await supa.from('stocks').delete().eq('id', id);
   if(error) alert('ลบล้มเหลว: '+error.message);
@@ -1452,7 +1453,7 @@ function renderGames(){
       <td class="font-medium">${escapeHtml(g.name||'')}</td>
       <td class="text-slate-400">${escapeHtml(g.category||'-')}</td>
       <td class="text-right text-slate-500 text-xs">${d}</td>
-      <td><button class="btn btn-ghost text-xs" onclick="delGame('${g.id}')">ลบ</button></td>
+      <td>${currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delGame('${g.id}')">ลบ</button>` : ''}</td>
     </tr>`;
   }).join('');
   document.getElementById('games-empty').classList.toggle('hidden', list.length>0);
@@ -1472,6 +1473,7 @@ function renderGames(){
 }
 document.getElementById('games-search').addEventListener('input', renderGames);
 async function delGame(id){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบได้'); return; }
   if(!confirm('ลบเกมนี้ออกจากรายชื่อ?')) return;
   const { error } = await supa.from('games').delete().eq('id', id);
   if(error) alert('ลบล้มเหลว: '+error.message);
@@ -1504,8 +1506,10 @@ function renderCredit(){
       <td class="text-right ${profit>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(profit)}</td>
       <td>${pill}</td>
       <td class="flex gap-1">
-        <button class="${btnClass} text-xs" onclick="toggleCreditStatus('${c.id}','${c.status}')">${btnText}</button>
-        <button class="btn btn-ghost text-xs" onclick="delCredit('${c.id}')">ลบ</button>
+        ${currentRole==='admin' ? `
+          <button class="${btnClass} text-xs" onclick="toggleCreditStatus('${c.id}','${c.status}')">${btnText}</button>
+          <button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delCredit('${c.id}')">ลบ</button>
+        ` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -1541,6 +1545,7 @@ function renderCredit(){
 }
 document.getElementById('credit-filter').addEventListener('change', renderCredit);
 async function toggleCreditStatus(id, current){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่แก้สถานะได้'); return; }
   const next = current==='paid' ? 'unpaid' : 'paid';
   const update = { status: next, paid_at: next==='paid' ? new Date().toISOString() : null };
   const { error } = await supa.from('credits').update(update).eq('id', id);
@@ -1548,6 +1553,7 @@ async function toggleCreditStatus(id, current){
   toast(next==='paid' ? '✅ ทำเป็นชำระแล้ว' : '↩️ คืนเป็นค้างชำระ');
 }
 async function delCredit(id){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบได้'); return; }
   if(!confirm('ลบรายการ Credit นี้?')) return;
   const { error } = await supa.from('credits').delete().eq('id', id);
   if(error) alert('ลบล้มเหลว: '+error.message);

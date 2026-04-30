@@ -15,3 +15,10 @@ test_save.xlsx
 # Backups
 *_backup.json
 *.csv.bak
+
+# Secrets — never commit
+.env
+.env.local
+.supabase_token
+*.pat
+secrets.json

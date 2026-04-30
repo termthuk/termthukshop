@@ -584,16 +584,23 @@
           <div id="users-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ใช้</div>
         </div>
         <div class="card">
-          <h3 class="font-semibold mb-3">➕ เชิญผู้ใช้ใหม่</h3>
-          <div class="text-sm text-slate-400 leading-6 mb-3">
-            ส่งลิงก์นี้ให้สมาชิกใหม่เพื่อสมัครเข้าใช้งาน:
-          </div>
-          <div class="card" style="background:#0b1220;padding:10px;">
-            <div class="text-xs text-cyan-300 break-all" id="invite-link">—</div>
-          </div>
-          <button class="btn w-full mt-3" onclick="copyInviteLink()">📋 คัดลอกลิงก์เชิญ</button>
-          <div class="text-xs text-slate-500 mt-3 leading-5">
-            ผู้ใช้ใหม่ต้องสมัครเองที่หน้า login (กดแท็บ "สมัครใหม่") — ระบบจะสร้างโปรไฟล์อัตโนมัติเมื่อล็อกอินครั้งแรก
+          <h3 class="font-semibold mb-3">➕ เพิ่มสมาชิกใหม่</h3>
+          <form id="form-add-user" class="space-y-3">
+            <div><label class="text-xs text-slate-400">อีเมล</label><input class="input" type="email" name="email" placeholder="member@example.com" required autocomplete="off"></div>
+            <div><label class="text-xs text-slate-400">รหัสผ่าน</label><input class="input" type="password" name="password" placeholder="อย่างน้อย 6 ตัวอักษร" required minlength="6" autocomplete="new-password"></div>
+            <div><label class="text-xs text-slate-400">ชื่อ (ไม่บังคับ)</label><input class="input" name="full_name"></div>
+            <div><label class="text-xs text-slate-400">บทบาท</label>
+              <select class="select" name="role">
+                <option value="staff">Member (ทั่วไป)</option>
+                <option value="admin">Admin (ผู้ดูแล)</option>
+              </select>
+            </div>
+            <button class="btn w-full" type="submit">➕ สร้างบัญชี</button>
+          </form>
+          <div class="mt-4 pt-3 border-t border-white/10">
+            <div class="text-xs text-slate-400 mb-2">หรือส่งลิงก์ให้สมัครเอง:</div>
+            <button class="btn btn-ghost w-full text-xs" onclick="copyInviteLink()">📋 คัดลอกลิงก์เชิญ</button>
+            <div class="text-xs text-cyan-300 break-all mt-2" id="invite-link">—</div>
           </div>
         </div>
       </div>
@@ -675,6 +682,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    ============================================================ */
 let supa = null;
 let currentUser = null;
+let currentRole = 'staff';
+let currentActive = true;
+const MEMBER_PAGES = new Set(['topup','history','stock','credit','games']);
 const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[], user_profiles:[], login_logs:[] };
 const dateFilter = { from:null, to:null };
 const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend','users']);
@@ -825,12 +835,33 @@ async function logEvent(event){
 async function upsertCurrentProfile(){
   if(!supa || !currentUser) return;
   try{
-    await supa.from('user_profiles').upsert({
-      id: currentUser.id,
-      email: currentUser.email,
-      updated_at: new Date().toISOString()
-    }, {onConflict:'id'});
-  }catch(e){}
+    const { data: existing } = await supa.from('user_profiles').select('*').eq('id', currentUser.id).maybeSingle();
+    if(existing){
+      currentRole = existing.role || 'staff';
+      currentActive = existing.active !== false;
+      await supa.from('user_profiles').update({email:currentUser.email, updated_at:new Date().toISOString()}).eq('id', currentUser.id);
+    } else {
+      // First user becomes admin automatically
+      const { count } = await supa.from('user_profiles').select('*', {count:'exact', head:true});
+      const role = (count||0) === 0 ? 'admin' : 'staff';
+      await supa.from('user_profiles').insert({id:currentUser.id, email:currentUser.email, role, active:true});
+      currentRole = role;
+      currentActive = true;
+    }
+  }catch(e){ console.error('profile upsert error:', e); }
+}
+function applyRoleAccess(){
+  document.querySelectorAll('.menu-item[data-page]').forEach(m=>{
+    const page = m.dataset.page;
+    const allowed = currentRole === 'admin' || MEMBER_PAGES.has(page);
+    m.classList.toggle('hidden', !allowed);
+  });
+  // Show role badge in user info
+  const ui = document.getElementById('user-info');
+  if(ui){
+    const badge = currentRole === 'admin' ? ' <span class="pill pill-info" style="margin-left:6px">Admin</span>' : ' <span class="pill pill-warn" style="margin-left:6px">Member</span>';
+    ui.innerHTML = '👤 ' + escapeHtml(currentUser.email) + badge;
+  }
 }
 
 function showLogin(){
@@ -842,6 +873,7 @@ async function showApp(){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-info').textContent = '👤 '+currentUser.email;
   await upsertCurrentProfile();
+  applyRoleAccess();
   await logEvent('login');
   await loadAllData();
   subscribeRealtime();
@@ -931,6 +963,8 @@ document.getElementById('menu').addEventListener('click', e=>{
 });
 function setActivePage(page){
   if(!PAGES[page]) page = 'overview';
+  // Role enforcement: members can only access whitelisted pages
+  if(currentRole !== 'admin' && !MEMBER_PAGES.has(page)) page = 'topup';
   document.querySelectorAll('.menu-item').forEach(m=>m.classList.toggle('active', m.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
   const pageEl = document.getElementById('page-'+page);
@@ -1681,7 +1715,7 @@ function renderUsers(){
     const last = userLastLogin(u.id);
     const lastTxt = last ? new Date(last).toLocaleString('th-TH') : '—';
     const isMe = currentUser && currentUser.id===u.id;
-    const roleBadge = u.role==='admin' ? '<span class="pill pill-info">Admin</span>' : '<span class="pill pill-warn">Staff</span>';
+    const roleBadge = u.role==='admin' ? '<span class="pill pill-info">Admin</span>' : '<span class="pill pill-warn">Member</span>';
     const activeBadge = u.active===false ? '<span class="pill pill-bad">ปิด</span>' : '<span class="pill pill-good">ใช้งาน</span>';
     return `<tr>
       <td class="font-medium">${escapeHtml(u.email||'')}${isMe?' <span class="text-xs text-cyan-300">(คุณ)</span>':''}</td>
@@ -1689,9 +1723,10 @@ function renderUsers(){
       <td>${roleBadge}</td>
       <td>${activeBadge}</td>
       <td class="text-right text-slate-500 text-xs">${lastTxt}</td>
-      <td class="flex gap-1">
+      <td class="flex gap-1 flex-wrap">
         <button class="btn btn-ghost text-xs" onclick="toggleUserRole('${u.id}','${u.role||'staff'}')">เปลี่ยนบทบาท</button>
         <button class="btn btn-ghost text-xs" onclick="toggleUserActive('${u.id}',${u.active!==false})">${u.active===false?'เปิด':'ปิด'}</button>
+        ${isMe ? '' : `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="deleteUser('${u.id}','${escapeHtml(u.email||'')}')">ลบ</button>`}
       </td>
     </tr>`;
   }).join('');
@@ -1700,13 +1735,85 @@ function renderUsers(){
   document.getElementById('users-active').textContent = list.filter(u=>u.active!==false).length;
   document.getElementById('users-admin').textContent = list.filter(u=>u.role==='admin').length;
   document.getElementById('invite-link').textContent = location.origin + location.pathname;
+
+  const f = document.getElementById('form-add-user');
+  if(f && !f.dataset.bound){
+    f.dataset.bound = '1';
+    f.addEventListener('submit', addUserSubmit);
+  }
+}
+async function addUserSubmit(e){
+  e.preventDefault();
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่สร้างบัญชีได้'); return; }
+  const f = e.target;
+  const fd = new FormData(f);
+  const email = fd.get('email'), password = fd.get('password');
+  const full_name = (fd.get('full_name')||'').trim();
+  const role = fd.get('role') || 'staff';
+  const btn = f.querySelector('button[type=submit]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังสร้าง...';
+  try {
+    // Save current admin session
+    const { data: sessData } = await supa.auth.getSession();
+    const adminTokens = sessData?.session;
+    if(!adminTokens){ throw new Error('ไม่พบ session ของ admin'); }
+
+    // Create new user via signUp
+    const { data: signUpData, error: signUpErr } = await supa.auth.signUp({email, password});
+    if(signUpErr) throw signUpErr;
+    const newId = signUpData?.user?.id;
+
+    // Restore admin session immediately
+    await supa.auth.setSession({
+      access_token: adminTokens.access_token,
+      refresh_token: adminTokens.refresh_token
+    });
+    currentUser = (await supa.auth.getUser()).data.user;
+
+    // Insert profile for new user (use admin context)
+    if(newId){
+      await supa.from('user_profiles').upsert({
+        id: newId, email, full_name, role, active:true
+      }, {onConflict:'id'});
+      await supa.from('login_logs').insert({
+        user_id: newId, email, event:'signup', user_agent:'admin-created'
+      });
+    }
+    f.reset();
+    toast('✅ สร้างบัญชี '+email+' เรียบร้อย');
+    await loadAllData();
+    renderUsers();
+  } catch(err){
+    alert('สร้างบัญชีล้มเหลว: '+(err.message||err));
+  } finally {
+    btn.disabled = false; btn.textContent = '➕ สร้างบัญชี';
+  }
+}
+async function deleteUser(id, email){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบบัญชีได้'); return; }
+  if(!confirm(`ลบสมาชิก "${email}" ออกจากรายชื่อ?\n\n⚠️ หมายเหตุ: การลบนี้จะลบโปรไฟล์ออกจากระบบ แต่บัญชี Auth ใน Supabase ยังคงอยู่ — ผู้ใช้ยัง login ได้ ถ้าต้องการลบถาวรให้ลบจาก Supabase Authentication panel ด้วย`)) return;
+  const { error } = await supa.from('user_profiles').delete().eq('id', id);
+  if(error){ alert('ลบล้มเหลว: '+error.message); return; }
+  toast('🗑️ ลบบัญชีจากรายชื่อแล้ว');
 }
 async function toggleUserRole(id, current){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่เปลี่ยนบทบาทได้'); return; }
   const next = current==='admin' ? 'staff' : 'admin';
-  if(!confirm(`เปลี่ยนบทบาทเป็น "${next}"?`)) return;
+  // Prevent demoting last admin
+  if(next === 'staff'){
+    const adminCount = state.user_profiles.filter(u=>u.role==='admin').length;
+    if(adminCount <= 1){ alert('⚠️ ไม่สามารถลด Admin คนสุดท้ายได้ — ต้องมี Admin อย่างน้อย 1 คนเสมอ'); return; }
+  }
+  if(!confirm(`เปลี่ยนบทบาทเป็น "${next==='admin'?'Admin':'Member'}"?`)) return;
   const { error } = await supa.from('user_profiles').update({role:next, updated_at:new Date().toISOString()}).eq('id', id);
   if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
   toast('✅ เปลี่ยนบทบาทแล้ว');
+  // If admin demoted themselves, refresh access
+  if(currentUser && currentUser.id === id){
+    currentRole = next;
+    applyRoleAccess();
+    if(next !== 'admin') setActivePage('topup');
+  }
 }
 async function toggleUserActive(id, current){
   const next = !current;

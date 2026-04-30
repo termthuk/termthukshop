@@ -120,6 +120,8 @@
       <div class="menu-item" data-page="dividend"><span>💎</span><span>ปันผลรายเดือน</span></div>
       <div class="menu-item" data-page="analyze"><span>🧠</span><span>วิเคราะห์ SKU</span></div>
       <div class="menu-item" data-page="games"><span>🎯</span><span>รายชื่อเกม</span></div>
+      <div class="menu-item" data-page="users"><span>👥</span><span>จัดการผู้ใช้</span></div>
+      <div class="menu-item" data-page="logs"><span>📋</span><span>ประวัติการเข้าใช้</span></div>
     </nav>
     <div class="mt-4 space-y-2 text-xs">
       <div id="user-info" class="text-slate-400 px-2 py-2"></div>
@@ -563,6 +565,70 @@
       </div>
     </section>
 
+    <!-- จัดการผู้ใช้ -->
+    <section id="page-users" class="page hidden fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">ผู้ใช้ทั้งหมด</div><div id="users-count" class="text-2xl font-bold text-cyan-300">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ใช้งานอยู่</div><div id="users-active" class="text-2xl font-bold text-emerald-300">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ผู้ดูแล (Admin)</div><div id="users-admin" class="text-2xl font-bold text-violet-300">0</div></div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <h3 class="font-semibold mb-3">👥 รายชื่อผู้ใช้</h3>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr><th>อีเมล</th><th>ชื่อ</th><th>บทบาท</th><th>สถานะ</th><th class="text-right">เข้าใช้ล่าสุด</th><th></th></tr></thead>
+              <tbody id="users-body"></tbody>
+            </table>
+          </div>
+          <div id="users-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ใช้</div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เชิญผู้ใช้ใหม่</h3>
+          <div class="text-sm text-slate-400 leading-6 mb-3">
+            ส่งลิงก์นี้ให้สมาชิกใหม่เพื่อสมัครเข้าใช้งาน:
+          </div>
+          <div class="card" style="background:#0b1220;padding:10px;">
+            <div class="text-xs text-cyan-300 break-all" id="invite-link">—</div>
+          </div>
+          <button class="btn w-full mt-3" onclick="copyInviteLink()">📋 คัดลอกลิงก์เชิญ</button>
+          <div class="text-xs text-slate-500 mt-3 leading-5">
+            ผู้ใช้ใหม่ต้องสมัครเองที่หน้า login (กดแท็บ "สมัครใหม่") — ระบบจะสร้างโปรไฟล์อัตโนมัติเมื่อล็อกอินครั้งแรก
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ประวัติการเข้าใช้งาน -->
+    <section id="page-logs" class="page hidden fade-in">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">รายการทั้งหมด</div><div id="logs-count" class="text-2xl font-bold">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">เข้าใช้งานวันนี้</div><div id="logs-today" class="text-2xl font-bold text-cyan-300">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">เข้าใช้งาน 7 วัน</div><div id="logs-7d" class="text-2xl font-bold text-emerald-300">0</div></div>
+      </div>
+      <div class="card">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 class="font-semibold">📋 ประวัติการเข้าใช้งาน</h3>
+          <div class="flex gap-2">
+            <input id="logs-search" class="input" style="max-width:220px" placeholder="🔎 ค้นหาอีเมล">
+            <select id="logs-event" class="select" style="max-width:140px">
+              <option value="">ทุกเหตุการณ์</option>
+              <option value="login">เข้าสู่ระบบ</option>
+              <option value="logout">ออกจากระบบ</option>
+              <option value="signup">สมัครใหม่</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto scroll-thin">
+          <table>
+            <thead><tr><th>เวลา</th><th>อีเมล</th><th>เหตุการณ์</th><th>เครื่อง / Browser</th></tr></thead>
+            <tbody id="logs-body"></tbody>
+          </table>
+        </div>
+        <div id="logs-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีประวัติ</div>
+      </div>
+    </section>
+
     <!-- ปันผลรายเดือน -->
     <section id="page-dividend" class="page hidden fade-in">
       <div class="card mb-4">
@@ -609,9 +675,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    ============================================================ */
 let supa = null;
 let currentUser = null;
-const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[] };
+const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[], user_profiles:[], login_logs:[] };
 const dateFilter = { from:null, to:null };
-const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend']);
+const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend','users']);
 
 document.getElementById('today').textContent = new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
@@ -742,7 +808,29 @@ function hideAlerts(){ document.getElementById('login-error').classList.add('hid
 
 async function logout(){
   if(!confirm('ออกจากระบบ?')) return;
+  try{ await logEvent('logout'); }catch(e){}
   await supa.auth.signOut();
+}
+async function logEvent(event){
+  if(!supa || !currentUser) return;
+  try{
+    await supa.from('login_logs').insert({
+      user_id: currentUser.id,
+      email: currentUser.email,
+      event,
+      user_agent: (navigator.userAgent||'').slice(0,300)
+    });
+  }catch(e){}
+}
+async function upsertCurrentProfile(){
+  if(!supa || !currentUser) return;
+  try{
+    await supa.from('user_profiles').upsert({
+      id: currentUser.id,
+      email: currentUser.email,
+      updated_at: new Date().toISOString()
+    }, {onConflict:'id'});
+  }catch(e){}
 }
 
 function showLogin(){
@@ -753,6 +841,8 @@ async function showApp(){
   document.getElementById('login-page').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('user-info').textContent = '👤 '+currentUser.email;
+  await upsertCurrentProfile();
+  await logEvent('login');
   await loadAllData();
   subscribeRealtime();
   let saved = 'overview';
@@ -765,7 +855,7 @@ async function showApp(){
    ============================================================ */
 async function loadAllData(){
   toast('⏳ โหลดข้อมูล...');
-  const [tx, st, sp, gm, cr, sh, ex, as] = await Promise.all([
+  const [tx, st, sp, gm, cr, sh, ex, as, up, ll] = await Promise.all([
     supa.from('transactions').select('*').order('date', {ascending:false}),
     supa.from('stocks').select('*').order('date', {ascending:false}),
     supa.from('supplies').select('*').order('date', {ascending:false}),
@@ -774,6 +864,8 @@ async function loadAllData(){
     supa.from('shareholders').select('*').order('name'),
     supa.from('expenses').select('*').order('date', {ascending:false}),
     supa.from('assets').select('*').order('date', {ascending:false}),
+    supa.from('user_profiles').select('*').order('email'),
+    supa.from('login_logs').select('*').order('created_at', {ascending:false}).limit(500),
   ]);
   state.transactions = tx.data || [];
   state.stocks = st.data || [];
@@ -783,11 +875,13 @@ async function loadAllData(){
   state.shareholders = sh.data || [];
   state.expenses = ex.data || [];
   state.assets = as.data || [];
+  state.user_profiles = up.data || [];
+  state.login_logs = ll.data || [];
   toast('✅ โหลดข้อมูลเรียบร้อย');
 }
 
 function subscribeRealtime(){
-  ['transactions','stocks','supplies','games','credits','shareholders','expenses','assets'].forEach(table=>{
+  ['transactions','stocks','supplies','games','credits','shareholders','expenses','assets','user_profiles','login_logs'].forEach(table=>{
     supa.channel('rt-'+table)
       .on('postgres_changes', { event:'*', schema:'public', table }, payload=>{
         applyRealtime(table, payload);
@@ -828,6 +922,8 @@ const PAGES = {
   dividend:{title:'ปันผลรายเดือน', sub:'สรุปกำไรและปันผลรายเดือน'},
   analyze:{title:'วิเคราะห์ SKU', sub:'บทวิเคราะห์เกมขายดี'},
   games:{title:'รายชื่อเกม', sub:'รายการเกมและคำนวนราคา'},
+  users:{title:'จัดการผู้ใช้', sub:'รายชื่อสมาชิกและบทบาท'},
+  logs:{title:'ประวัติการเข้าใช้', sub:'Log การเข้าใช้งานระบบ'},
 };
 document.getElementById('menu').addEventListener('click', e=>{
   const item = e.target.closest('.menu-item'); if(!item) return;
@@ -859,6 +955,8 @@ function refreshPage(p){
   if(p==='dividend') renderDividend();
   if(p==='analyze') renderAnalyze();
   if(p==='games') renderGames();
+  if(p==='users') renderUsers();
+  if(p==='logs') renderLogs();
 }
 
 /* ============================================================
@@ -1569,6 +1667,89 @@ function renderDividend(){
   document.getElementById('dividend-empty').classList.toggle('hidden', list.length>0);
 }
 document.getElementById('dividend-month').addEventListener('change', renderDividend);
+
+/* ============================================================
+   USERS
+   ============================================================ */
+function userLastLogin(userId){
+  const log = state.login_logs.find(l=>l.user_id===userId && l.event==='login');
+  return log ? log.created_at : null;
+}
+function renderUsers(){
+  const list = state.user_profiles.slice().sort((a,b)=>(a.email||'').localeCompare(b.email||''));
+  document.getElementById('users-body').innerHTML = list.map(u=>{
+    const last = userLastLogin(u.id);
+    const lastTxt = last ? new Date(last).toLocaleString('th-TH') : '—';
+    const isMe = currentUser && currentUser.id===u.id;
+    const roleBadge = u.role==='admin' ? '<span class="pill pill-info">Admin</span>' : '<span class="pill pill-warn">Staff</span>';
+    const activeBadge = u.active===false ? '<span class="pill pill-bad">ปิด</span>' : '<span class="pill pill-good">ใช้งาน</span>';
+    return `<tr>
+      <td class="font-medium">${escapeHtml(u.email||'')}${isMe?' <span class="text-xs text-cyan-300">(คุณ)</span>':''}</td>
+      <td>${escapeHtml(u.full_name||'-')}</td>
+      <td>${roleBadge}</td>
+      <td>${activeBadge}</td>
+      <td class="text-right text-slate-500 text-xs">${lastTxt}</td>
+      <td class="flex gap-1">
+        <button class="btn btn-ghost text-xs" onclick="toggleUserRole('${u.id}','${u.role||'staff'}')">เปลี่ยนบทบาท</button>
+        <button class="btn btn-ghost text-xs" onclick="toggleUserActive('${u.id}',${u.active!==false})">${u.active===false?'เปิด':'ปิด'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.getElementById('users-empty').classList.toggle('hidden', list.length>0);
+  document.getElementById('users-count').textContent = list.length;
+  document.getElementById('users-active').textContent = list.filter(u=>u.active!==false).length;
+  document.getElementById('users-admin').textContent = list.filter(u=>u.role==='admin').length;
+  document.getElementById('invite-link').textContent = location.origin + location.pathname;
+}
+async function toggleUserRole(id, current){
+  const next = current==='admin' ? 'staff' : 'admin';
+  if(!confirm(`เปลี่ยนบทบาทเป็น "${next}"?`)) return;
+  const { error } = await supa.from('user_profiles').update({role:next, updated_at:new Date().toISOString()}).eq('id', id);
+  if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
+  toast('✅ เปลี่ยนบทบาทแล้ว');
+}
+async function toggleUserActive(id, current){
+  const next = !current;
+  if(!confirm(next ? 'เปิดใช้งานบัญชีนี้?' : 'ปิดใช้งานบัญชีนี้? (ยังเข้าระบบได้แต่จะแสดงสถานะปิด)')) return;
+  const { error } = await supa.from('user_profiles').update({active:next, updated_at:new Date().toISOString()}).eq('id', id);
+  if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
+  toast(next ? '✅ เปิดบัญชีแล้ว' : '⛔ ปิดบัญชีแล้ว');
+}
+function copyInviteLink(){
+  const link = document.getElementById('invite-link').textContent;
+  navigator.clipboard.writeText(link).then(()=>toast('📋 คัดลอกลิงก์แล้ว'));
+}
+
+/* ============================================================
+   LOGS
+   ============================================================ */
+function renderLogs(){
+  const q = (document.getElementById('logs-search').value||'').toLowerCase();
+  const ev = document.getElementById('logs-event').value;
+  const list = state.login_logs.filter(l=>{
+    if(ev && l.event!==ev) return false;
+    if(q && !(l.email||'').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  document.getElementById('logs-body').innerHTML = list.map(l=>{
+    const evMap = {login:'<span class="pill pill-good">เข้าสู่ระบบ</span>',logout:'<span class="pill pill-warn">ออกจากระบบ</span>',signup:'<span class="pill pill-info">สมัครใหม่</span>'};
+    const ua = (l.user_agent||'').slice(0,80);
+    return `<tr>
+      <td class="text-slate-400 text-xs whitespace-nowrap">${new Date(l.created_at).toLocaleString('th-TH')}</td>
+      <td>${escapeHtml(l.email||'-')}</td>
+      <td>${evMap[l.event]||escapeHtml(l.event||'-')}</td>
+      <td class="text-slate-500 text-xs">${escapeHtml(ua)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('logs-empty').classList.toggle('hidden', list.length>0);
+  document.getElementById('logs-count').textContent = state.login_logs.length;
+  const today = new Date().toISOString().slice(0,10);
+  const weekAgo = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  document.getElementById('logs-today').textContent = state.login_logs.filter(l=>l.event==='login' && (l.created_at||'').slice(0,10)===today).length;
+  document.getElementById('logs-7d').textContent = state.login_logs.filter(l=>l.event==='login' && (l.created_at||'').slice(0,10)>=weekAgo).length;
+}
+document.getElementById('logs-search').addEventListener('input', renderLogs);
+document.getElementById('logs-event').addEventListener('change', renderLogs);
 
 /* ============================================================
    UTILS

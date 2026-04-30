@@ -105,6 +105,27 @@ create table if not exists public.assets (
   created_at timestamptz default now()
 );
 
+-- 9) User profiles (โปรไฟล์ผู้ใช้)
+create table if not exists public.user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  full_name text,
+  role text default 'staff' check (role in ('admin','staff')),
+  active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 10) Login logs (ประวัติการเข้าใช้งาน)
+create table if not exists public.login_logs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  email text,
+  event text check (event in ('login','logout','signup')),
+  user_agent text,
+  created_at timestamptz default now()
+);
+
 -- =====================================================
 -- Indexes
 -- =====================================================
@@ -134,6 +155,8 @@ alter table public.credits enable row level security;
 alter table public.shareholders enable row level security;
 alter table public.expenses enable row level security;
 alter table public.assets enable row level security;
+alter table public.user_profiles enable row level security;
+alter table public.login_logs enable row level security;
 
 -- =====================================================
 -- RLS Policies — authenticated users see/edit all data (single shop)
@@ -187,6 +210,15 @@ create policy "auth users can insert assets" on public.assets for insert with ch
 create policy "auth users can update assets" on public.assets for update using (auth.role() = 'authenticated');
 create policy "auth users can delete assets" on public.assets for delete using (auth.role() = 'authenticated');
 
+-- user_profiles
+create policy "auth users can read profiles" on public.user_profiles for select using (auth.role() = 'authenticated');
+create policy "auth users can upsert profiles" on public.user_profiles for insert with check (auth.role() = 'authenticated');
+create policy "auth users can update profiles" on public.user_profiles for update using (auth.role() = 'authenticated');
+
+-- login_logs
+create policy "auth users can read logs" on public.login_logs for select using (auth.role() = 'authenticated');
+create policy "auth users can insert logs" on public.login_logs for insert with check (auth.role() = 'authenticated');
+
 -- =====================================================
 -- Realtime — enable broadcasting changes to subscribers
 -- =====================================================
@@ -198,3 +230,5 @@ alter publication supabase_realtime add table public.credits;
 alter publication supabase_realtime add table public.shareholders;
 alter publication supabase_realtime add table public.expenses;
 alter publication supabase_realtime add table public.assets;
+alter publication supabase_realtime add table public.user_profiles;
+alter publication supabase_realtime add table public.login_logs;

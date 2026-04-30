@@ -501,12 +501,17 @@
 
     <!-- ต้นทุนเริ่ม / ผู้ถือหุ้น -->
     <section id="page-capital" class="page hidden fade-in">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
         <div class="card"><div class="text-xs text-slate-400">ต้นทุนเริ่มรวม</div><div id="capital-total" class="text-2xl font-bold text-cyan-300">฿0</div></div>
-        <div class="card"><div class="text-xs text-slate-400">จำนวนผู้ถือหุ้น</div><div id="capital-count" class="text-2xl font-bold">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ทรัพย์สินบริษัท</div><div id="asset-total" class="text-2xl font-bold text-amber-300">฿0</div></div>
+        <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">ยอดคงเหลือ</div><div id="capital-remain" class="text-2xl font-bold text-emerald-300">฿0</div></div>
         <div class="card"><div class="text-xs text-slate-400">รวมสัดส่วน</div><div id="capital-pct-sum" class="text-2xl font-bold">0%</div></div>
       </div>
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <div class="tab active" data-captab="shareholders">🏦 ผู้ถือหุ้น</div>
+        <div class="tab" data-captab="assets">🏢 ทรัพย์สินบริษัท</div>
+      </div>
+      <div id="captab-shareholders" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div class="card lg:col-span-2">
           <h3 class="font-semibold mb-3">🏦 รายชื่อผู้ถือหุ้น</h3>
           <div class="overflow-x-auto scroll-thin">
@@ -523,6 +528,34 @@
             <div><label class="text-xs text-slate-400">ชื่อ</label><input class="input" name="name" required></div>
             <div><label class="text-xs text-slate-400">สัดส่วน (%)</label><input class="input" type="number" step="0.01" min="0" max="100" name="percentage" required></div>
             <div><label class="text-xs text-slate-400">ต้นทุนเริ่ม (฿)</label><input class="input" type="number" step="0.01" min="0" name="capital"></div>
+            <div><label class="text-xs text-slate-400">หมายเหตุ</label><input class="input" name="note"></div>
+            <button class="btn w-full" type="submit">บันทึก</button>
+          </form>
+        </div>
+      </div>
+      <div id="captab-assets" class="grid grid-cols-1 lg:grid-cols-3 gap-4 hidden">
+        <div class="card lg:col-span-2">
+          <h3 class="font-semibold mb-3">🏢 รายการทรัพย์สิน</h3>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr><th>วันที่</th><th>รายการ</th><th>หมวด</th><th class="text-right">มูลค่า (฿)</th><th>หมายเหตุ</th><th></th></tr></thead>
+              <tbody id="asset-body"></tbody>
+            </table>
+          </div>
+          <div id="asset-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีทรัพย์สิน</div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่มทรัพย์สิน</h3>
+          <form id="form-asset" class="space-y-3">
+            <div><label class="text-xs text-slate-400">วันที่</label><input class="input" type="date" name="date" required></div>
+            <div><label class="text-xs text-slate-400">รายการ</label><input class="input" name="item" placeholder="เช่น คอมพิวเตอร์ / โต๊ะ" required></div>
+            <div><label class="text-xs text-slate-400">หมวด</label>
+              <select class="select" name="category">
+                <option>อุปกรณ์คอมฯ</option><option>เฟอร์นิเจอร์</option><option>เครื่องใช้สำนักงาน</option>
+                <option>ยานพาหนะ</option><option>ของตกแต่ง</option><option>อื่น ๆ</option>
+              </select>
+            </div>
+            <div><label class="text-xs text-slate-400">มูลค่า (฿)</label><input class="input" type="number" step="0.01" min="0" name="value" required></div>
             <div><label class="text-xs text-slate-400">หมายเหตุ</label><input class="input" name="note"></div>
             <button class="btn w-full" type="submit">บันทึก</button>
           </form>
@@ -576,7 +609,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
    ============================================================ */
 let supa = null;
 let currentUser = null;
-const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[] };
+const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[] };
 const dateFilter = { from:null, to:null };
 const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend']);
 
@@ -732,7 +765,7 @@ async function showApp(){
    ============================================================ */
 async function loadAllData(){
   toast('⏳ โหลดข้อมูล...');
-  const [tx, st, sp, gm, cr, sh, ex] = await Promise.all([
+  const [tx, st, sp, gm, cr, sh, ex, as] = await Promise.all([
     supa.from('transactions').select('*').order('date', {ascending:false}),
     supa.from('stocks').select('*').order('date', {ascending:false}),
     supa.from('supplies').select('*').order('date', {ascending:false}),
@@ -740,6 +773,7 @@ async function loadAllData(){
     supa.from('credits').select('*').order('date', {ascending:false}),
     supa.from('shareholders').select('*').order('name'),
     supa.from('expenses').select('*').order('date', {ascending:false}),
+    supa.from('assets').select('*').order('date', {ascending:false}),
   ]);
   state.transactions = tx.data || [];
   state.stocks = st.data || [];
@@ -748,11 +782,12 @@ async function loadAllData(){
   state.credits = cr.data || [];
   state.shareholders = sh.data || [];
   state.expenses = ex.data || [];
+  state.assets = as.data || [];
   toast('✅ โหลดข้อมูลเรียบร้อย');
 }
 
 function subscribeRealtime(){
-  ['transactions','stocks','supplies','games','credits','shareholders','expenses'].forEach(table=>{
+  ['transactions','stocks','supplies','games','credits','shareholders','expenses','assets'].forEach(table=>{
     supa.channel('rt-'+table)
       .on('postgres_changes', { event:'*', schema:'public', table }, payload=>{
         applyRealtime(table, payload);
@@ -1427,11 +1462,29 @@ function renderCapital(){
   document.getElementById('capital-empty').classList.toggle('hidden', list.length>0);
   const totalCap = list.reduce((a,b)=>a+(+b.capital||0),0);
   const totalPct = list.reduce((a,b)=>a+(+b.percentage||0),0);
+  const totalAsset = state.assets.reduce((a,b)=>a+(+b.value||0),0);
+  const remain = totalCap - totalAsset;
   document.getElementById('capital-total').textContent = fmt(totalCap);
-  document.getElementById('capital-count').textContent = list.length;
+  document.getElementById('asset-total').textContent = fmt(totalAsset);
+  const remainEl = document.getElementById('capital-remain');
+  remainEl.textContent = fmt(remain);
+  remainEl.className = 'text-2xl font-bold '+(remain<0?'text-rose-300':(remain<totalCap*0.2?'text-amber-300':'text-emerald-300'));
   const pctEl = document.getElementById('capital-pct-sum');
   pctEl.textContent = totalPct.toFixed(2)+'%';
   pctEl.className = 'text-2xl font-bold '+(Math.abs(totalPct-100)<0.5 ? 'text-emerald-300' : 'text-amber-300');
+
+  // Assets render
+  const aList = state.assets.slice();
+  document.getElementById('asset-body').innerHTML = aList.map(a=>`
+    <tr>
+      <td class="text-slate-400 text-xs">${escapeHtml(a.date||'')}</td>
+      <td class="font-medium">${escapeHtml(a.item||'')}</td>
+      <td><span class="pill pill-info">${escapeHtml(a.category||'-')}</span></td>
+      <td class="text-right text-amber-300 font-semibold">${fmt(a.value)}</td>
+      <td class="text-slate-500 text-xs">${escapeHtml(a.note||'')}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delAsset('${a.id}')">ลบ</button></td>
+    </tr>`).join('');
+  document.getElementById('asset-empty').classList.toggle('hidden', aList.length>0);
 
   const f = document.getElementById('form-capital');
   if(!f.dataset.bound){
@@ -1447,12 +1500,40 @@ function renderCapital(){
       f.reset(); toast('✅ บันทึกผู้ถือหุ้นเรียบร้อย');
     });
   }
+  const fa = document.getElementById('form-asset');
+  if(!fa.dataset.bound){
+    fa.dataset.bound='1';
+    fa.querySelector('[name=date]').value = todayStr();
+    fa.addEventListener('submit', async ev=>{
+      ev.preventDefault();
+      const fd = new FormData(fa); const obj = Object.fromEntries(fd.entries());
+      obj.value = parseFloat(obj.value)||0; obj.created_by = currentUser.id;
+      const { error } = await supa.from('assets').insert(obj);
+      if(error){ alert('บันทึกล้มเหลว: '+error.message); return; }
+      fa.reset(); fa.querySelector('[name=date]').value = todayStr();
+      toast('✅ เพิ่มทรัพย์สินเรียบร้อย');
+    });
+  }
 }
 async function delShareholder(id){
   if(!confirm('ลบผู้ถือหุ้นนี้?')) return;
   const { error } = await supa.from('shareholders').delete().eq('id', id);
   if(error) alert('ลบล้มเหลว: '+error.message);
 }
+async function delAsset(id){
+  if(!confirm('ลบทรัพย์สินนี้?')) return;
+  const { error } = await supa.from('assets').delete().eq('id', id);
+  if(error) alert('ลบล้มเหลว: '+error.message);
+}
+document.querySelectorAll('[data-captab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-captab]').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const tab = t.dataset.captab;
+    document.getElementById('captab-shareholders').classList.toggle('hidden', tab!=='shareholders');
+    document.getElementById('captab-assets').classList.toggle('hidden', tab!=='assets');
+  });
+});
 
 /* ============================================================
    DIVIDEND

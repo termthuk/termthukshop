@@ -93,6 +93,18 @@ create table if not exists public.expenses (
   created_at timestamptz default now()
 );
 
+-- 8) Assets (ทรัพย์สินบริษัท)
+create table if not exists public.assets (
+  id uuid primary key default gen_random_uuid(),
+  date date not null default current_date,
+  item text not null,
+  category text,
+  value numeric(12,2) default 0,
+  note text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
+
 -- =====================================================
 -- Indexes
 -- =====================================================
@@ -121,6 +133,7 @@ alter table public.games enable row level security;
 alter table public.credits enable row level security;
 alter table public.shareholders enable row level security;
 alter table public.expenses enable row level security;
+alter table public.assets enable row level security;
 
 -- =====================================================
 -- RLS Policies — authenticated users see/edit all data (single shop)
@@ -168,6 +181,12 @@ create policy "auth users can insert expenses" on public.expenses for insert wit
 create policy "auth users can update expenses" on public.expenses for update using (auth.role() = 'authenticated');
 create policy "auth users can delete expenses" on public.expenses for delete using (auth.role() = 'authenticated');
 
+-- assets
+create policy "auth users can read assets" on public.assets for select using (auth.role() = 'authenticated');
+create policy "auth users can insert assets" on public.assets for insert with check (auth.role() = 'authenticated');
+create policy "auth users can update assets" on public.assets for update using (auth.role() = 'authenticated');
+create policy "auth users can delete assets" on public.assets for delete using (auth.role() = 'authenticated');
+
 -- =====================================================
 -- Realtime — enable broadcasting changes to subscribers
 -- =====================================================
@@ -178,3 +197,4 @@ alter publication supabase_realtime add table public.games;
 alter publication supabase_realtime add table public.credits;
 alter publication supabase_realtime add table public.shareholders;
 alter publication supabase_realtime add table public.expenses;
+alter publication supabase_realtime add table public.assets;

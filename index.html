@@ -1732,7 +1732,6 @@ function renderUsers(){
   document.getElementById('users-count').textContent = list.length;
   document.getElementById('users-active').textContent = list.filter(u=>u.active!==false).length;
   document.getElementById('users-admin').textContent = list.filter(u=>u.role==='admin').length;
-  document.getElementById('invite-link').textContent = location.origin + location.pathname;
 
   const f = document.getElementById('form-add-user');
   if(f && !f.dataset.bound){
@@ -1818,10 +1817,6 @@ async function toggleUserActive(id, current){
   const { error } = await supa.from('user_profiles').update({active:next, updated_at:new Date().toISOString()}).eq('id', id);
   if(error){ alert('อัปเดตล้มเหลว: '+error.message); return; }
   toast(next ? '✅ เปิดบัญชีแล้ว' : '⛔ ปิดบัญชีแล้ว');
-}
-function copyInviteLink(){
-  const link = document.getElementById('invite-link').textContent;
-  navigator.clipboard.writeText(link).then(()=>toast('📋 คัดลอกลิงก์แล้ว'));
 }
 
 /* ============================================================

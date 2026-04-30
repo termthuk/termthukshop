@@ -132,7 +132,7 @@
   </aside>
 
   <main class="flex-1 p-6 max-w-[1400px] mx-auto">
-    <header class="flex items-center justify-between mb-6">
+    <header class="flex items-center justify-between mb-4">
       <div>
         <h1 id="page-title" class="text-2xl font-semibold">ภาพรวม</h1>
         <p id="page-sub" class="text-sm text-slate-400">สรุปต้นทุน ยอดขาย และกำไรของร้าน</p>
@@ -142,6 +142,22 @@
         <div id="today" class="font-medium"></div>
       </div>
     </header>
+
+    <!-- Global date filter -->
+    <div id="date-filter-bar" class="card mb-4 flex flex-wrap items-center gap-2" style="padding:10px 14px;">
+      <span class="text-xs text-slate-400 mr-1">📅 ช่วงวันที่:</span>
+      <button class="btn btn-ghost text-xs" data-preset="today">วันนี้</button>
+      <button class="btn btn-ghost text-xs" data-preset="7d">7 วัน</button>
+      <button class="btn btn-ghost text-xs" data-preset="30d">30 วัน</button>
+      <button class="btn btn-ghost text-xs" data-preset="thisMonth">เดือนนี้</button>
+      <button class="btn btn-ghost text-xs" data-preset="lastMonth">เดือนก่อน</button>
+      <button class="btn btn-ghost text-xs" data-preset="all">ทั้งหมด</button>
+      <span class="text-slate-600 mx-1">|</span>
+      <input id="date-from" type="date" class="input" style="max-width:160px;padding:6px 10px;font-size:13px">
+      <span class="text-slate-500 text-xs">ถึง</span>
+      <input id="date-to" type="date" class="input" style="max-width:160px;padding:6px 10px;font-size:13px">
+      <span id="date-filter-label" class="text-xs text-slate-400 ml-auto"></span>
+    </div>
 
     <!-- ภาพรวม -->
     <section id="page-overview" class="page fade-in">
@@ -561,6 +577,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supa = null;
 let currentUser = null;
 const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[] };
+const dateFilter = { from:null, to:null };
+const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend']);
 
 document.getElementById('today').textContent = new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 
@@ -589,6 +607,51 @@ function init(){
     else showLogin();
   });
 }
+
+/* ============================================================
+   DATE FILTER
+   ============================================================ */
+function inDateFilter(d){
+  if(!d) return true;
+  const x = (typeof d === 'string' ? d : d.toISOString()).slice(0,10);
+  if(dateFilter.from && x < dateFilter.from) return false;
+  if(dateFilter.to && x > dateFilter.to) return false;
+  return true;
+}
+function setDateRange(from, to){
+  dateFilter.from = from;
+  dateFilter.to = to;
+  document.getElementById('date-from').value = from || '';
+  document.getElementById('date-to').value = to || '';
+  updateDateFilterLabel();
+  if(typeof currentPage === 'function') refreshPage(currentPage());
+}
+function updateDateFilterLabel(){
+  const lbl = document.getElementById('date-filter-label');
+  if(!lbl) return;
+  if(!dateFilter.from && !dateFilter.to) lbl.textContent = 'แสดงทั้งหมด';
+  else lbl.textContent = `${dateFilter.from||'…'} → ${dateFilter.to||'…'}`;
+}
+function applyPreset(p){
+  const today = new Date();
+  const fmt = d => d.toISOString().slice(0,10);
+  const t = fmt(today);
+  if(p==='today') return setDateRange(t, t);
+  if(p==='7d'){ const d=new Date(today); d.setDate(d.getDate()-6); return setDateRange(fmt(d), t); }
+  if(p==='30d'){ const d=new Date(today); d.setDate(d.getDate()-29); return setDateRange(fmt(d), t); }
+  if(p==='thisMonth'){ const d=new Date(today.getFullYear(), today.getMonth(), 1); return setDateRange(fmt(d), t); }
+  if(p==='lastMonth'){
+    const start=new Date(today.getFullYear(), today.getMonth()-1, 1);
+    const end=new Date(today.getFullYear(), today.getMonth(), 0);
+    return setDateRange(fmt(start), fmt(end));
+  }
+  if(p==='all') return setDateRange(null, null);
+}
+document.querySelectorAll('#date-filter-bar [data-preset]').forEach(b=>{
+  b.addEventListener('click', ()=>applyPreset(b.dataset.preset));
+});
+document.getElementById('date-from').addEventListener('change', e=>setDateRange(e.target.value||null, dateFilter.to));
+document.getElementById('date-to').addEventListener('change', e=>setDateRange(dateFilter.from, e.target.value||null));
 
 /* ============================================================
    AUTH
@@ -743,6 +806,8 @@ function setActivePage(page){
   if(pageEl) pageEl.classList.remove('hidden');
   document.getElementById('page-title').textContent = PAGES[page].title;
   document.getElementById('page-sub').textContent = PAGES[page].sub;
+  const filterBar = document.getElementById('date-filter-bar');
+  if(filterBar) filterBar.classList.toggle('hidden', PAGES_NO_FILTER.has(page));
   try{ localStorage.setItem('tts_active_page', page); }catch(e){}
   refreshPage(page);
 }
@@ -772,7 +837,7 @@ function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getM
 function nowLocal(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
 
 function renderOverview(){
-  const tx = state.transactions;
+  const tx = state.transactions.filter(t=>inDateFilter(t.date));
   const cost = tx.reduce((s,t)=>s+(+t.cost||0),0);
   const sales = tx.reduce((s,t)=>s+(+t.sales||0),0);
   const profit = sales - cost;
@@ -950,6 +1015,7 @@ function renderHistory(){
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const fs = document.getElementById('hist-stock').value;
   const rows = state.transactions.filter(t=>{
+    if(!inDateFilter(t.date)) return false;
     if(fs && t.stock_type!==fs) return false;
     if(q) return [t.buyer,t.seller,t.game,t.channel,t.note].some(v=>(v||'').toString().toLowerCase().includes(q));
     return true;
@@ -1002,7 +1068,7 @@ document.querySelectorAll('[data-stock]').forEach(el=>{
 function renderStock(){
   document.getElementById('stock-title').textContent = 'รายการสต๊อก '+stockTitles[activeStock];
   document.getElementById('stock-label-qty').textContent = stockQtyLabels[activeStock];
-  const list = state.stocks.filter(s=>s.type===activeStock);
+  const list = state.stocks.filter(s=>s.type===activeStock && inDateFilter(s.date));
   document.getElementById('stock-body').innerHTML = list.map(s=>{
     const per = s.qty? (s.cost/s.qty):0;
     return `<tr>
@@ -1075,7 +1141,7 @@ document.querySelectorAll('[data-supplier]').forEach(el=>{
 });
 function renderSupply(){
   document.getElementById('supply-title').textContent = 'รายการยอดฝากเครดิต — '+activeSupplier;
-  const list = state.supplies.filter(s=>s.supplier===activeSupplier);
+  const list = state.supplies.filter(s=>s.supplier===activeSupplier && inDateFilter(s.date));
   document.getElementById('supply-body').innerHTML = list.map(s=>`
     <tr>
       <td class="text-slate-400 text-xs">${escapeHtml(s.date||'')}</td>
@@ -1124,7 +1190,7 @@ function pillStatus(s){
    ANALYZE
    ============================================================ */
 function renderAnalyze(){
-  const tx = state.transactions;
+  const tx = state.transactions.filter(t=>inDateFilter(t.date));
   if(!tx.length){
     document.getElementById('analysis-text').textContent = 'ยังไม่มีข้อมูลพอสำหรับการวิเคราะห์';
     document.querySelector('#sku-top tbody').innerHTML = '';
@@ -1238,7 +1304,7 @@ function runCalc(){
    ============================================================ */
 function renderCredit(){
   const filter = document.getElementById('credit-filter').value;
-  const list = state.credits.filter(c=>!filter || c.status===filter);
+  const list = state.credits.filter(c=>(!filter || c.status===filter) && inDateFilter(c.date));
   document.getElementById('credit-body').innerHTML = list.map(c=>{
     const profit = (+c.sales||0) - (+c.cost||0);
     const pill = c.status==='paid' ? '<span class="pill pill-good">ชำระแล้ว</span>' : '<span class="pill pill-warn">ค้างชำระ</span>';
@@ -1306,7 +1372,7 @@ async function delCredit(id){
    EXPENSE
    ============================================================ */
 function renderExpense(){
-  const list = state.expenses;
+  const list = state.expenses.filter(e=>inDateFilter(e.date));
   document.getElementById('expense-body').innerHTML = list.map(e=>`
     <tr>
       <td class="text-slate-400 text-xs">${escapeHtml(e.date||'')}</td>

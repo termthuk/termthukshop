@@ -200,7 +200,8 @@
                 <optgroup label="📦 สต๊อก" id="topup-stock-group">
                   <option value="itunes">iTunes</option>
                   <option value="razer">Razer Gold</option>
-                  <option value="mycard">Mycard</option>
+                  <option value="mycard_p">Mycard P</option>
+                  <option value="mycard_n">Mycard N</option>
                   <option value="usdt">USDT / PHP</option>
                   <option value="xbox">Xbox</option>
                 </optgroup>
@@ -243,8 +244,8 @@
           <select id="hist-stock" class="select" style="max-width:180px">
             <option value="">ทุกสต๊อก</option>
             <option value="itunes">iTunes</option><option value="razer">Razer</option>
-            <option value="mycard">Mycard</option><option value="usdt">USDT/PHP</option>
-            <option value="xbox">Xbox</option>
+            <option value="mycard_p">Mycard P</option><option value="mycard_n">Mycard N</option>
+            <option value="usdt">USDT/PHP</option><option value="xbox">Xbox</option>
             <option value="none">เติมตรง</option>
           </select>
           <button class="btn btn-ghost" onclick="exportXLSX()">📊 Export Excel</button>
@@ -269,7 +270,8 @@
       <div class="flex gap-2 mb-4 flex-wrap">
         <div class="tab active" data-stock="itunes">🎵 iTunes</div>
         <div class="tab" data-stock="razer">🟢 Razer</div>
-        <div class="tab" data-stock="mycard">🟡 Mycard</div>
+        <div class="tab" data-stock="mycard_p">🟡 Mycard P</div>
+        <div class="tab" data-stock="mycard_n">🟠 Mycard N</div>
         <div class="tab" data-stock="usdt">💱 USDT / PHP</div>
         <div class="tab" data-stock="xbox">🎮 Xbox</div>
       </div>
@@ -1061,11 +1063,12 @@ function renderOverview(){
     {label:'กำไร',  data:dP, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.20)', fill:false, tension:.3},
   ]);
 
-  const mix = {iTunes:0,Razer:0,Mycard:0,USDT:0,Xbox:0,'เติมตรง':0};
+  const mix = {iTunes:0,Razer:0,'Mycard P':0,'Mycard N':0,USDT:0,Xbox:0,'เติมตรง':0};
   tx.forEach(t=>{
     if(t.stock_type==='itunes') mix.iTunes += +t.cost||0;
     else if(t.stock_type==='razer') mix.Razer += +t.cost||0;
-    else if(t.stock_type==='mycard') mix.Mycard += +t.cost||0;
+    else if(t.stock_type==='mycard_p') mix['Mycard P'] += +t.cost||0;
+    else if(t.stock_type==='mycard_n') mix['Mycard N'] += +t.cost||0;
     else if(t.stock_type==='usdt') mix.USDT += +t.cost||0;
     else if(t.stock_type==='xbox') mix.Xbox += +t.cost||0;
     else mix['เติมตรง'] += +t.cost||0;
@@ -1141,7 +1144,7 @@ function fillStockOptions(){
   const current = sel.value;
   // refresh stock group labels with remaining
   const stockGroup = document.getElementById('topup-stock-group');
-  const stockTypes = [['itunes','iTunes'],['razer','Razer Gold'],['mycard','Mycard'],['usdt','USDT / PHP'],['xbox','Xbox']];
+  const stockTypes = [['itunes','iTunes'],['razer','Razer Gold'],['mycard_p','Mycard P'],['mycard_n','Mycard N'],['usdt','USDT / PHP'],['xbox','Xbox']];
   stockGroup.innerHTML = stockTypes.map(([k,n])=>{
     const r = stockRemaining(k);
     return `<option value="${k}">${n} — เหลือ ${fmt(r)}</option>`;
@@ -1247,7 +1250,7 @@ document.getElementById('hist-search').addEventListener('input', renderHistory);
 document.getElementById('hist-stock').addEventListener('change', renderHistory);
 function stockLabel(k){
   if(k && k.startsWith('supply:')) return '💳 '+k.slice(7);
-  return ({itunes:'iTunes', razer:'Razer', mycard:'Mycard', usdt:'USDT/PHP', xbox:'Xbox', none:'เติมตรง'})[k]||'-';
+  return ({itunes:'iTunes', razer:'Razer', mycard_p:'Mycard P', mycard_n:'Mycard N', usdt:'USDT/PHP', xbox:'Xbox', none:'เติมตรง'})[k]||'-';
 }
 function exportTxRows(){
   // Apply current date filter + search + stock filter (what user sees)
@@ -1310,8 +1313,8 @@ function exportXLSX(){
    STOCK
    ============================================================ */
 let activeStock = 'itunes';
-const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard:'Mycard', usdt:'USDT / PHP', xbox:'Xbox'};
-const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($)', razer:'มูลค่าหน้าบัตร ($)', mycard:'มูลค่า / point', usdt:'จำนวน (USDT/PHP)', xbox:'มูลค่าหน้าบัตร ($)'};
+const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard_p:'Mycard P', mycard_n:'Mycard N', usdt:'USDT / PHP', xbox:'Xbox'};
+const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($)', razer:'มูลค่าหน้าบัตร ($)', mycard_p:'มูลค่า / point', mycard_n:'มูลค่า / point', usdt:'จำนวน (USDT/PHP)', xbox:'มูลค่าหน้าบัตร ($)'};
 document.querySelectorAll('[data-stock]').forEach(el=>{
   el.addEventListener('click',()=>{
     document.querySelectorAll('[data-stock]').forEach(t=>t.classList.remove('active'));

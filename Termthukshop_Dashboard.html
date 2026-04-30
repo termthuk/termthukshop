@@ -1,0 +1,1010 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Termthukshop — Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f172a; --panel:#111827; --panel-2:#1f2937; --line:#374151;
+    --text:#e5e7eb; --muted:#9ca3af; --accent:#22d3ee; --accent-2:#a78bfa;
+    --good:#22c55e; --bad:#ef4444; --warn:#f59e0b;
+  }
+  html,body{font-family:'Prompt',system-ui,sans-serif; background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%); color:var(--text); min-height:100vh;}
+  .glass{background:rgba(17,24,39,.7); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,.06);}
+  .menu-item{cursor:pointer; padding:10px 14px; border-radius:10px; color:#cbd5e1; transition:.15s; display:flex; align-items:center; gap:10px;}
+  .menu-item:hover{background:rgba(255,255,255,.05); color:#fff;}
+  .menu-item.active{background:linear-gradient(135deg,#0891b2,#7c3aed); color:#fff; box-shadow:0 6px 20px -6px rgba(124,58,237,.5);}
+  .card{background:rgba(31,41,55,.7); border:1px solid rgba(255,255,255,.06); border-radius:16px; padding:18px;}
+  .input, .select, textarea{background:#0b1220; border:1px solid #334155; color:#e5e7eb; border-radius:10px; padding:9px 12px; width:100%; font-family:'Prompt';}
+  .input:focus, .select:focus, textarea:focus{outline:2px solid #22d3ee; border-color:transparent;}
+  .btn{background:linear-gradient(135deg,#06b6d4,#7c3aed); color:#fff; border-radius:10px; padding:10px 16px; font-weight:500; transition:.15s; border:none; cursor:pointer; font-family:'Prompt';}
+  .btn:hover{filter:brightness(1.1); transform:translateY(-1px);}
+  .btn-ghost{background:rgba(255,255,255,.05); color:#cbd5e1;}
+  .btn-ghost:hover{background:rgba(255,255,255,.1);}
+  .btn-danger{background:linear-gradient(135deg,#ef4444,#b91c1c);}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:500;}
+  .pill-good{background:rgba(34,197,94,.15); color:#4ade80;}
+  .pill-bad{background:rgba(239,68,68,.15); color:#f87171;}
+  .pill-warn{background:rgba(245,158,11,.15); color:#fbbf24;}
+  .pill-info{background:rgba(34,211,238,.15); color:#67e8f9;}
+  table{width:100%; border-collapse:collapse;}
+  th{font-weight:500; color:#9ca3af; text-align:left; padding:10px 12px; border-bottom:1px solid #374151; font-size:13px; text-transform:uppercase; letter-spacing:.5px;}
+  td{padding:10px 12px; border-bottom:1px solid rgba(55,65,81,.5); font-size:14px;}
+  tr:hover td{background:rgba(255,255,255,.02);}
+  .tab{padding:8px 16px; cursor:pointer; border-radius:10px; color:#94a3b8; transition:.15s; font-weight:500;}
+  .tab:hover{background:rgba(255,255,255,.05); color:#e5e7eb;}
+  .tab.active{background:linear-gradient(135deg,#06b6d4,#7c3aed); color:#fff;}
+  .kpi{position:relative; overflow:hidden;}
+  .kpi::before{content:''; position:absolute; top:0; right:0; width:120px; height:120px; background:radial-gradient(circle,rgba(124,58,237,.18),transparent 70%);}
+  .scroll-thin::-webkit-scrollbar{width:6px;height:6px;}
+  .scroll-thin::-webkit-scrollbar-thumb{background:#374151; border-radius:99px;}
+  /* number input arrows hidden */
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none; margin:0;}
+  input[type=number]{-moz-appearance:textfield;}
+  .fade-in{animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  details>summary{cursor:pointer; list-style:none;}
+  details>summary::-webkit-details-marker{display:none;}
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 glass border-r border-white/5 p-4 flex flex-col" style="position:sticky; top:0; height:100vh;">
+    <div class="flex items-center gap-3 px-2 mb-6 mt-2">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#06b6d4,#7c3aed);">
+        <span class="text-xl">🎮</span>
+      </div>
+      <div>
+        <div class="font-bold text-lg leading-tight">Termthukshop</div>
+        <div class="text-xs text-slate-400">เติมเกม Dashboard</div>
+      </div>
+    </div>
+    <nav id="menu" class="space-y-1 text-sm flex-1">
+      <div class="menu-item active" data-page="overview"><span>📊</span><span>ภาพรวม</span></div>
+      <div class="menu-item" data-page="topup"><span>💳</span><span>เติมเกม</span></div>
+      <div class="menu-item" data-page="history"><span>📜</span><span>ประวัติการขาย</span></div>
+      <div class="menu-item" data-page="stock"><span>📦</span><span>สต๊อก / Rate</span></div>
+      <div class="menu-item" data-page="supply"><span>🚚</span><span>Supply ส่งสินค้า</span></div>
+      <div class="menu-item" data-page="analyze"><span>🧠</span><span>วิเคราะห์ SKU</span></div>
+      <div class="menu-item" data-page="games"><span>🎯</span><span>รายชื่อเกม / คำนวนต้นทุน</span></div>
+    </nav>
+    <div class="mt-4 space-y-2 text-xs text-slate-400">
+      <button onclick="exportData()" class="w-full btn btn-ghost text-left">⬇️ ส่งออกข้อมูล (.json)</button>
+      <label class="w-full btn btn-ghost text-left block cursor-pointer">⬆️ นำเข้าข้อมูล <input type="file" accept=".json" class="hidden" onchange="importData(event)"></label>
+      <button onclick="resetData()" class="w-full btn btn-ghost text-left text-red-300">🗑️ ล้างข้อมูลทั้งหมด</button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="flex-1 p-6 max-w-[1400px] mx-auto">
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <h1 id="page-title" class="text-2xl font-semibold">ภาพรวม</h1>
+        <p id="page-sub" class="text-sm text-slate-400">สรุปต้นทุน ยอดขาย และกำไรของร้าน</p>
+      </div>
+      <div class="text-right">
+        <div class="text-xs text-slate-400">วันนี้</div>
+        <div id="today" class="font-medium"></div>
+      </div>
+    </header>
+
+    <!-- ============= ภาพรวม ============= -->
+    <section id="page-overview" class="page fade-in">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="card kpi"><div class="text-xs text-slate-400 mb-1">ต้นทุนรวม</div><div id="kpi-cost" class="text-2xl font-bold text-amber-300">฿0</div><div class="text-xs text-slate-500 mt-2" id="kpi-cost-sub">—</div></div>
+        <div class="card kpi"><div class="text-xs text-slate-400 mb-1">ยอดขายรวม</div><div id="kpi-sales" class="text-2xl font-bold text-cyan-300">฿0</div><div class="text-xs text-slate-500 mt-2" id="kpi-sales-sub">—</div></div>
+        <div class="card kpi"><div class="text-xs text-slate-400 mb-1">กำไรรวม</div><div id="kpi-profit" class="text-2xl font-bold text-emerald-300">฿0</div><div class="text-xs text-slate-500 mt-2" id="kpi-profit-sub">—</div></div>
+        <div class="card kpi"><div class="text-xs text-slate-400 mb-1">จำนวนรายการ</div><div id="kpi-tx" class="text-2xl font-bold text-violet-300">0</div><div class="text-xs text-slate-500 mt-2" id="kpi-tx-sub">—</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">ยอดขาย / กำไรรายวัน (30 วันล่าสุด)</h3>
+          </div>
+          <canvas id="chart-daily" height="100"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">สัดส่วนช่องทางสต๊อก</h3>
+          <canvas id="chart-stockmix" height="200"></canvas>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card">
+          <h3 class="font-semibold mb-3">🏆 เกมขายดี Top 10 (ตามจำนวนรายการ)</h3>
+          <canvas id="chart-games" height="200"></canvas>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">💰 เกมทำกำไรสูงสุด Top 10</h3>
+          <canvas id="chart-profit" height="200"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= เติมเกม ============= -->
+    <section id="page-topup" class="page hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <h3 class="font-semibold mb-4">📝 บันทึกการเติมเกม</h3>
+          <form id="form-topup" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-xs text-slate-400">วันที่/เวลา</label>
+              <input class="input" type="datetime-local" name="date" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ชื่อผู้ซื้อ</label>
+              <input class="input" name="buyer" placeholder="เช่น ลูกค้า A" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ชื่อผู้ขาย</label>
+              <input class="input" name="seller" placeholder="แอดมิน / ตัวเอง" required list="sellers-list">
+              <datalist id="sellers-list"></datalist>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">เกม</label>
+              <input class="input" name="game" placeholder="เช่น Free Fire, ROV, Genshin" required list="games-list">
+              <datalist id="games-list"></datalist>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ช่องทางการโอน</label>
+              <select class="select" name="channel" required>
+                <option value="">— เลือก —</option>
+                <option>TrueWallet</option>
+                <option>SCB</option>
+                <option>KBank</option>
+                <option>Krungthai</option>
+                <option>BBL</option>
+                <option>PromptPay</option>
+                <option>USDT</option>
+                <option>เงินสด</option>
+                <option>อื่น ๆ</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">เลือกสต๊อกที่ใช้เติม</label>
+              <select class="select" name="stockType" required>
+                <option value="">— เลือก —</option>
+                <option value="itunes">iTunes</option>
+                <option value="razer">Razer Gold</option>
+                <option value="mycard">Mycard</option>
+                <option value="usdt">USDT / PHP</option>
+                <option value="none">ไม่ใช้สต๊อก (เติมตรง)</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ต้นทุน (฿)</label>
+              <input class="input" name="cost" type="number" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ยอดขาย (฿)</label>
+              <input class="input" name="sales" type="number" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div class="md:col-span-2">
+              <label class="text-xs text-slate-400">หมายเหตุ (ถ้ามี)</label>
+              <input class="input" name="note" placeholder="เช่น ลูกค้าประจำ / Voucher 500">
+            </div>
+            <div class="md:col-span-2 flex items-center justify-between gap-3 pt-2">
+              <div class="flex-1 card" style="background:rgba(34,197,94,.06); border-color:rgba(34,197,94,.25);">
+                <div class="text-xs text-slate-400">สรุปกำไรรายการนี้</div>
+                <div id="form-profit" class="text-2xl font-bold text-emerald-300">฿0.00</div>
+                <div id="form-margin" class="text-xs text-slate-500">Margin: 0%</div>
+              </div>
+              <button type="submit" class="btn">💾 บันทึก</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-3">⚡ รายการล่าสุด</h3>
+          <div id="recent-list" class="space-y-2 max-h-[480px] overflow-auto scroll-thin"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= ประวัติการขาย ============= -->
+    <section id="page-history" class="page hidden fade-in">
+      <div class="card">
+        <div class="flex flex-wrap gap-3 items-center mb-4">
+          <h3 class="font-semibold flex-1">📜 ประวัติการขาย <span class="text-xs text-slate-400 font-normal">(อ่านอย่างเดียว ไม่สามารถแก้ไขได้)</span></h3>
+          <input id="hist-search" class="input" style="max-width:240px" placeholder="🔎 ค้นหา ชื่อ / เกม / ช่องทาง">
+          <select id="hist-stock" class="select" style="max-width:180px">
+            <option value="">ทุกสต๊อก</option>
+            <option value="itunes">iTunes</option><option value="razer">Razer</option>
+            <option value="mycard">Mycard</option><option value="usdt">USDT/PHP</option>
+            <option value="none">เติมตรง</option>
+          </select>
+          <button class="btn btn-ghost" onclick="exportCSV()">⬇️ Export CSV</button>
+        </div>
+        <div class="overflow-x-auto scroll-thin">
+          <table id="hist-table">
+            <thead>
+              <tr>
+                <th>วันที่</th><th>ผู้ซื้อ</th><th>ผู้ขาย</th><th>เกม</th><th>ช่องทาง</th>
+                <th>สต๊อก</th><th class="text-right">ต้นทุน</th><th class="text-right">ยอดขาย</th>
+                <th class="text-right">กำไร</th><th>หมายเหตุ</th>
+              </tr>
+            </thead>
+            <tbody id="hist-body"></tbody>
+          </table>
+        </div>
+        <div id="hist-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีประวัติการขาย</div>
+      </div>
+    </section>
+
+    <!-- ============= สต๊อก/Rate ============= -->
+    <section id="page-stock" class="page hidden fade-in">
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <div class="tab active" data-stock="itunes">🎵 iTunes</div>
+        <div class="tab" data-stock="razer">🟢 Razer</div>
+        <div class="tab" data-stock="mycard">🟡 Mycard</div>
+        <div class="tab" data-stock="usdt">💱 USDT / PHP</div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 id="stock-title" class="font-semibold">รายการสต๊อก iTunes</h3>
+            <div class="text-sm text-slate-400">รวม <span id="stock-count" class="text-white font-semibold">0</span> รายการ</div>
+          </div>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th><th>มูลค่า/จำนวน</th><th class="text-right">ต้นทุน</th>
+                  <th class="text-right">ราคาต่อหน่วย</th><th>แหล่ง</th><th class="text-right">หมายเหตุ</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="stock-body"></tbody>
+            </table>
+          </div>
+          <div id="stock-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีข้อมูลในสต๊อกนี้</div>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่มสต๊อก</h3>
+          <form id="form-stock" class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-400">วันที่</label>
+              <input class="input" type="date" name="date" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400" id="stock-label-qty">มูลค่าหน้าบัตร / จำนวน</label>
+              <input class="input" type="number" step="0.01" min="0" name="qty" placeholder="100" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ต้นทุน (฿)</label>
+              <input class="input" type="number" step="0.01" min="0" name="cost" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">แหล่งที่ซื้อ</label>
+              <input class="input" name="source" placeholder="เช่น Kingpro / 24BuyM" list="suppliers-list">
+              <datalist id="suppliers-list">
+                <option>จอนชาวไร่</option><option>Kingpro</option><option>Over</option><option>24BuyM</option>
+              </datalist>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">หมายเหตุ</label>
+              <input class="input" name="note">
+            </div>
+            <button class="btn w-full" type="submit">บันทึก</button>
+          </form>
+
+          <div class="mt-5 pt-4 border-t border-white/10">
+            <div class="text-xs text-slate-400 mb-1">📊 สรุปสต๊อกนี้</div>
+            <div class="text-sm space-y-1">
+              <div class="flex justify-between"><span class="text-slate-400">มูลค่า/จำนวนรวม</span><span id="stock-sum-qty" class="font-semibold">0</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">ต้นทุนรวม</span><span id="stock-sum-cost" class="font-semibold text-amber-300">฿0</span></div>
+              <div class="flex justify-between"><span class="text-slate-400">ราคาเฉลี่ย/หน่วย</span><span id="stock-sum-avg" class="font-semibold text-cyan-300">—</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= Supply ============= -->
+    <section id="page-supply" class="page hidden fade-in">
+      <div class="flex gap-2 mb-4 flex-wrap">
+        <div class="tab active" data-supplier="จอนชาวไร่">👨‍🌾 จอนชาวไร่</div>
+        <div class="tab" data-supplier="Kingpro">👑 Kingpro</div>
+        <div class="tab" data-supplier="Over">⚡ Over</div>
+        <div class="tab" data-supplier="24BuyM">🛒 24BuyM</div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 id="supply-title" class="font-semibold">รายการ Supply</h3>
+          </div>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead>
+                <tr>
+                  <th>วันที่</th><th>รายการ</th><th class="text-right">มูลค่า</th>
+                  <th class="text-right">ต้นทุน</th><th>สถานะ</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="supply-body"></tbody>
+            </table>
+          </div>
+          <div id="supply-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มี Supply จากผู้ขายรายนี้</div>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-3">➕ เพิ่ม Supply</h3>
+          <form id="form-supply" class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-400">วันที่</label>
+              <input class="input" type="date" name="date" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">รายการ / สินค้า</label>
+              <input class="input" name="item" placeholder="เช่น iTunes 100$ x2" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">มูลค่าหน้าบัตร</label>
+              <input class="input" type="number" step="0.01" min="0" name="value" placeholder="0">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">ต้นทุน (฿)</label>
+              <input class="input" type="number" step="0.01" min="0" name="cost" required>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">สถานะ</label>
+              <select class="select" name="status">
+                <option>รอจัดส่ง</option><option>กำลังส่ง</option>
+                <option>ได้รับแล้ว</option><option>มีปัญหา</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">หมายเหตุ</label>
+              <input class="input" name="note">
+            </div>
+            <button class="btn w-full" type="submit">บันทึก Supply</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+        <div class="card"><div class="text-xs text-slate-400">จอนชาวไร่</div><div id="supply-stat-1" class="text-lg font-bold">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">Kingpro</div><div id="supply-stat-2" class="text-lg font-bold">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">Over</div><div id="supply-stat-3" class="text-lg font-bold">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">24BuyM</div><div id="supply-stat-4" class="text-lg font-bold">฿0</div></div>
+      </div>
+    </section>
+
+    <!-- ============= วิเคราะห์ SKU ============= -->
+    <section id="page-analyze" class="page hidden fade-in">
+      <div class="card mb-4">
+        <h3 class="font-semibold mb-3">🧠 บทวิเคราะห์อัตโนมัติ</h3>
+        <div id="analysis-text" class="leading-7 text-slate-200 whitespace-pre-line text-sm">—</div>
+      </div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card">
+          <h3 class="font-semibold mb-3">📈 SKU ขายดี (Top 15)</h3>
+          <div class="overflow-auto scroll-thin" style="max-height:420px">
+            <table id="sku-top">
+              <thead><tr><th>อันดับ</th><th>เกม</th><th class="text-right">จำนวน</th><th class="text-right">ยอดขาย</th><th class="text-right">กำไร</th><th class="text-right">Margin</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">⏳ Trending (7 วันล่าสุด vs ก่อนหน้า)</h3>
+          <div class="overflow-auto scroll-thin" style="max-height:420px">
+            <table id="sku-trend">
+              <thead><tr><th>เกม</th><th class="text-right">7 วัน</th><th class="text-right">ก่อนหน้า</th><th class="text-right">เปลี่ยนแปลง</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= รายชื่อเกม / คำนวนต้นทุน ============= -->
+    <section id="page-games" class="page hidden fade-in">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card lg:col-span-2">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-semibold">🎯 รายชื่อเกม</h3>
+            <input id="games-search" class="input" style="max-width:220px" placeholder="🔎 ค้นหาเกม">
+          </div>
+          <div class="overflow-auto scroll-thin">
+            <table>
+              <thead>
+                <tr>
+                  <th>เกม</th><th class="text-right">รายการ</th>
+                  <th class="text-right">ต้นทุนเฉลี่ย</th><th class="text-right">ราคาขายเฉลี่ย</th>
+                  <th class="text-right">กำไรเฉลี่ย</th><th class="text-right">Margin</th><th></th>
+                </tr>
+              </thead>
+              <tbody id="games-body"></tbody>
+            </table>
+          </div>
+          <div id="games-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีรายการเกม — เริ่มบันทึกที่หน้า "เติมเกม"</div>
+        </div>
+
+        <div class="card">
+          <h3 class="font-semibold mb-3">🧮 คำนวนต้นทุน → ราคาขาย</h3>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs text-slate-400">ต้นทุน (฿)</label>
+              <input id="calc-cost" class="input" type="number" step="0.01" placeholder="0">
+            </div>
+            <div>
+              <label class="text-xs text-slate-400">% กำไรที่ต้องการ</label>
+              <input id="calc-margin" class="input" type="number" step="0.1" value="20">
+            </div>
+            <button class="btn w-full" onclick="runCalc()">คำนวน</button>
+          </div>
+          <div class="mt-4 pt-4 border-t border-white/10 space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-slate-400">ราคาขายแนะนำ</span><span id="calc-price" class="font-bold text-cyan-300">—</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">กำไร/รายการ</span><span id="calc-profit" class="font-bold text-emerald-300">—</span></div>
+          </div>
+          <div class="mt-5 pt-4 border-t border-white/10">
+            <div class="text-xs text-slate-400 mb-2">ตารางอัตรากำไรอ้างอิง</div>
+            <div id="calc-table" class="space-y-1 text-xs"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <h3 class="font-semibold mb-3">➕ เพิ่มเกมใหม่ (ในรายชื่อ)</h3>
+        <form id="form-game" class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม" required>
+          <input class="input" name="category" placeholder="หมวด เช่น Mobile / PC">
+          <button class="btn">เพิ่ม</button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Modal placeholder -->
+<div id="toast" class="fixed bottom-6 right-6 hidden glass px-4 py-3 rounded-xl border border-emerald-400/30 text-emerald-300 text-sm shadow-lg"></div>
+
+<script>
+/* =================== STATE =================== */
+const STORAGE_KEY = 'termthukshop_v1';
+const initState = () => ({
+  transactions: [],
+  stocks: { itunes: [], razer: [], mycard: [], usdt: [] },
+  supplies: { 'จอนชาวไร่':[], 'Kingpro':[], 'Over':[], '24BuyM':[] },
+  games: [], // {name, category}
+  sellers: [],
+});
+let state = load();
+function load(){
+  try { const s = JSON.parse(localStorage.getItem(STORAGE_KEY)); if(s) return Object.assign(initState(), s); } catch(e){}
+  return initState();
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function fmt(n){ const v = Number(n)||0; return '฿'+v.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtN(n){ return Number(n||0).toLocaleString('th-TH',{maximumFractionDigits:2}); }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'),2200); }
+function pad(n){ return n<10?'0'+n:n;}
+function nowLocal(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function todayStr(){ const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+document.getElementById('today').textContent = new Date().toLocaleDateString('th-TH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+/* =================== NAV =================== */
+const PAGES = {
+  overview: {title:'ภาพรวม', sub:'สรุปต้นทุน ยอดขาย และกำไรของร้าน'},
+  topup:    {title:'เติมเกม', sub:'บันทึกการขายเกมในร้าน'},
+  history:  {title:'ประวัติการขาย', sub:'รายการขายทั้งหมด (อ่านอย่างเดียว)'},
+  stock:    {title:'สต๊อก / Rate', sub:'จัดการสต๊อก iTunes / Razer / Mycard / USDT-PHP'},
+  supply:   {title:'Supply ส่งสินค้า', sub:'รายการสินค้าจากผู้จัดส่ง 4 ราย'},
+  analyze:  {title:'วิเคราะห์ SKU', sub:'บทวิเคราะห์เกมขายดีและ Trend'},
+  games:    {title:'รายชื่อเกม / คำนวนต้นทุน', sub:'รายการเกมและเครื่องมือคำนวนราคา'},
+};
+document.getElementById('menu').addEventListener('click', e=>{
+  const item = e.target.closest('.menu-item'); if(!item) return;
+  document.querySelectorAll('.menu-item').forEach(m=>m.classList.remove('active'));
+  item.classList.add('active');
+  const page = item.dataset.page;
+  document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+  document.getElementById('page-'+page).classList.remove('hidden');
+  document.getElementById('page-title').textContent = PAGES[page].title;
+  document.getElementById('page-sub').textContent = PAGES[page].sub;
+  refreshPage(page);
+});
+
+function refreshPage(p){
+  if(p==='overview') renderOverview();
+  if(p==='topup') renderTopup();
+  if(p==='history') renderHistory();
+  if(p==='stock') renderStock();
+  if(p==='supply') renderSupply();
+  if(p==='analyze') renderAnalyze();
+  if(p==='games') renderGames();
+}
+
+/* =================== OVERVIEW =================== */
+let charts = {};
+function renderOverview(){
+  const tx = state.transactions;
+  const cost = tx.reduce((s,t)=>s+(+t.cost||0),0);
+  const sales = tx.reduce((s,t)=>s+(+t.sales||0),0);
+  const profit = sales - cost;
+  document.getElementById('kpi-cost').textContent = fmt(cost);
+  document.getElementById('kpi-sales').textContent = fmt(sales);
+  document.getElementById('kpi-profit').textContent = fmt(profit);
+  document.getElementById('kpi-tx').textContent = tx.length.toLocaleString();
+  // sub
+  const today = todayStr();
+  const todayTx = tx.filter(t=>t.date && t.date.startsWith(today));
+  document.getElementById('kpi-cost-sub').textContent = `วันนี้ ${fmt(todayTx.reduce((s,t)=>s+(+t.cost||0),0))}`;
+  document.getElementById('kpi-sales-sub').textContent = `วันนี้ ${fmt(todayTx.reduce((s,t)=>s+(+t.sales||0),0))}`;
+  document.getElementById('kpi-profit-sub').textContent = sales? `Margin เฉลี่ย ${(profit/sales*100).toFixed(1)}%`:'—';
+  document.getElementById('kpi-tx-sub').textContent = `วันนี้ ${todayTx.length} รายการ`;
+
+  // daily chart
+  const days = []; const dCost = []; const dSales = []; const dProfit = [];
+  for(let i=29;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i);
+    const k = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    days.push(`${pad(d.getDate())}/${pad(d.getMonth()+1)}`);
+    const dayTx = tx.filter(t=>t.date && t.date.startsWith(k));
+    const c = dayTx.reduce((s,t)=>s+(+t.cost||0),0);
+    const s = dayTx.reduce((s,t)=>s+(+t.sales||0),0);
+    dCost.push(c); dSales.push(s); dProfit.push(s-c);
+  }
+  drawLine('chart-daily', days, [
+    {label:'ยอดขาย', data:dSales, borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.15)', fill:true, tension:.3},
+    {label:'ต้นทุน', data:dCost, borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.10)', fill:false, tension:.3},
+    {label:'กำไร', data:dProfit, borderColor:'#22c55e', backgroundColor:'rgba(34,197,94,.20)', fill:false, tension:.3},
+  ]);
+
+  // stock mix
+  const mix = {iTunes:0, Razer:0, Mycard:0, USDT:0, เติมตรง:0};
+  tx.forEach(t=>{
+    if(t.stockType==='itunes') mix.iTunes += +t.cost||0;
+    else if(t.stockType==='razer') mix.Razer += +t.cost||0;
+    else if(t.stockType==='mycard') mix.Mycard += +t.cost||0;
+    else if(t.stockType==='usdt') mix.USDT += +t.cost||0;
+    else mix['เติมตรง'] += +t.cost||0;
+  });
+  drawDoughnut('chart-stockmix', Object.keys(mix), Object.values(mix));
+
+  // top games (count)
+  const byGame = {};
+  tx.forEach(t=>{ const g = t.game||'?'; byGame[g] = byGame[g]||{count:0, sales:0, profit:0}; byGame[g].count++; byGame[g].sales+=+t.sales||0; byGame[g].profit+=(+t.sales||0)-(+t.cost||0); });
+  const top10 = Object.entries(byGame).sort((a,b)=>b[1].count-a[1].count).slice(0,10);
+  drawBar('chart-games', top10.map(x=>x[0]), top10.map(x=>x[1].count), '#22d3ee');
+
+  // top profit
+  const top10p = Object.entries(byGame).sort((a,b)=>b[1].profit-a[1].profit).slice(0,10);
+  drawBar('chart-profit', top10p.map(x=>x[0]), top10p.map(x=>x[1].profit), '#22c55e');
+}
+
+function drawLine(id, labels, datasets){
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx,{type:'line', data:{labels, datasets}, options:lineOpts()});
+}
+function drawBar(id, labels, data, color){
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx,{type:'bar', data:{labels, datasets:[{data, backgroundColor:color+'cc', borderRadius:6}]}, options:barOpts()});
+}
+function drawDoughnut(id, labels, data){
+  if(charts[id]) charts[id].destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx,{type:'doughnut', data:{labels, datasets:[{data, backgroundColor:['#22d3ee','#a78bfa','#f59e0b','#22c55e','#94a3b8'], borderColor:'#0b1220', borderWidth:2}]}, options:doughnutOpts()});
+}
+const baseTicks = {color:'#94a3b8', font:{family:'Prompt'}};
+const grid = {color:'rgba(148,163,184,.08)'};
+function lineOpts(){return {responsive:true, plugins:{legend:{labels:{color:'#cbd5e1', font:{family:'Prompt'}}}}, scales:{x:{ticks:baseTicks, grid:{display:false}}, y:{ticks:baseTicks, grid}}}}
+function barOpts(){return {responsive:true, indexAxis:'y', plugins:{legend:{display:false}}, scales:{x:{ticks:baseTicks, grid}, y:{ticks:baseTicks, grid:{display:false}}}}}
+function doughnutOpts(){return {responsive:true, plugins:{legend:{position:'bottom', labels:{color:'#cbd5e1', font:{family:'Prompt'}}}}, cutout:'60%'}}
+
+/* =================== TOPUP =================== */
+function renderTopup(){
+  const f = document.getElementById('form-topup');
+  if(!f.dataset.bound){
+    f.dataset.bound = '1';
+    f.querySelector('[name=date]').value = nowLocal();
+    f.addEventListener('input', updateProfitPreview);
+    f.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(f);
+      const obj = Object.fromEntries(fd.entries());
+      obj.id = uid();
+      obj.cost = parseFloat(obj.cost)||0;
+      obj.sales = parseFloat(obj.sales)||0;
+      obj.profit = obj.sales - obj.cost;
+      state.transactions.push(obj);
+      // remember sellers/games
+      if(obj.seller && !state.sellers.includes(obj.seller)) state.sellers.push(obj.seller);
+      if(obj.game && !state.games.find(g=>g.name===obj.game)) state.games.push({name:obj.game, category:''});
+      save();
+      f.reset();
+      f.querySelector('[name=date]').value = nowLocal();
+      updateProfitPreview();
+      renderRecent();
+      fillDatalists();
+      toast('✅ บันทึกการขายเรียบร้อย');
+    });
+  }
+  fillDatalists();
+  renderRecent();
+  updateProfitPreview();
+}
+function fillDatalists(){
+  const gl = document.getElementById('games-list');
+  gl.innerHTML = state.games.map(g=>`<option value="${escapeHtml(g.name)}">`).join('');
+  const sl = document.getElementById('sellers-list');
+  sl.innerHTML = state.sellers.map(s=>`<option value="${escapeHtml(s)}">`).join('');
+}
+function updateProfitPreview(){
+  const f = document.getElementById('form-topup');
+  if(!f) return;
+  const c = parseFloat(f.querySelector('[name=cost]').value)||0;
+  const s = parseFloat(f.querySelector('[name=sales]').value)||0;
+  const p = s - c;
+  document.getElementById('form-profit').textContent = fmt(p);
+  document.getElementById('form-profit').className = 'text-2xl font-bold '+(p>=0?'text-emerald-300':'text-rose-300');
+  document.getElementById('form-margin').textContent = 'Margin: '+(s? (p/s*100).toFixed(1):'0')+'%';
+}
+function renderRecent(){
+  const list = document.getElementById('recent-list');
+  const recent = state.transactions.slice().reverse().slice(0,15);
+  if(!recent.length){ list.innerHTML = '<div class="text-slate-500 text-sm text-center py-6">ยังไม่มีรายการ</div>'; return;}
+  list.innerHTML = recent.map(t=>{
+    const p = (+t.sales||0)-(+t.cost||0);
+    return `<div class="card" style="padding:10px;">
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-semibold">${escapeHtml(t.game||'?')}</div>
+        <div class="${p>=0?'text-emerald-300':'text-rose-300'} text-sm font-bold">${fmt(p)}</div>
+      </div>
+      <div class="text-xs text-slate-400 mt-1">${escapeHtml(t.buyer||'')} • ${escapeHtml(t.channel||'')} • ${(t.date||'').replace('T',' ')}</div>
+    </div>`;
+  }).join('');
+}
+
+/* =================== HISTORY =================== */
+function renderHistory(){
+  const q = (document.getElementById('hist-search').value||'').toLowerCase();
+  const filterStock = document.getElementById('hist-stock').value;
+  const rows = state.transactions.slice().reverse().filter(t=>{
+    if(filterStock && t.stockType!==filterStock) return false;
+    if(q){
+      return [t.buyer,t.seller,t.game,t.channel,t.note].some(v=>(v||'').toString().toLowerCase().includes(q));
+    }
+    return true;
+  });
+  const body = document.getElementById('hist-body');
+  body.innerHTML = rows.map(t=>{
+    const p = (+t.sales||0)-(+t.cost||0);
+    return `<tr>
+      <td class="text-slate-400 text-xs whitespace-nowrap">${(t.date||'').replace('T',' ')}</td>
+      <td>${escapeHtml(t.buyer||'')}</td>
+      <td>${escapeHtml(t.seller||'')}</td>
+      <td class="font-medium">${escapeHtml(t.game||'')}</td>
+      <td><span class="pill pill-info">${escapeHtml(t.channel||'')}</span></td>
+      <td class="text-slate-400">${stockLabel(t.stockType)}</td>
+      <td class="text-right text-amber-300">${fmt(t.cost)}</td>
+      <td class="text-right text-cyan-300">${fmt(t.sales)}</td>
+      <td class="text-right ${p>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(p)}</td>
+      <td class="text-slate-500 text-xs">${escapeHtml(t.note||'')}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('hist-empty').classList.toggle('hidden', rows.length>0);
+}
+document.getElementById('hist-search').addEventListener('input', renderHistory);
+document.getElementById('hist-stock').addEventListener('change', renderHistory);
+function stockLabel(k){ return ({itunes:'iTunes', razer:'Razer', mycard:'Mycard', usdt:'USDT/PHP', none:'เติมตรง'})[k]||'-'; }
+
+function exportCSV(){
+  const rows = [['วันที่','ผู้ซื้อ','ผู้ขาย','เกม','ช่องทาง','สต๊อก','ต้นทุน','ยอดขาย','กำไร','หมายเหตุ']];
+  state.transactions.forEach(t=>{
+    rows.push([t.date,t.buyer,t.seller,t.game,t.channel,stockLabel(t.stockType),t.cost,t.sales,(+t.sales||0)-(+t.cost||0),t.note||'']);
+  });
+  const csv = '﻿'+rows.map(r=>r.map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'termthukshop_history.csv'; a.click();
+  toast('⬇️ Export CSV เรียบร้อย');
+}
+
+/* =================== STOCK =================== */
+let activeStock = 'itunes';
+const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard:'Mycard', usdt:'USDT / PHP'};
+const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($/USD)', razer:'มูลค่าหน้าบัตร ($/USD)', mycard:'มูลค่า / point', usdt:'จำนวน USDT (หรือ PHP)'};
+document.querySelectorAll('[data-stock]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('[data-stock]').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    activeStock = el.dataset.stock;
+    renderStock();
+  });
+});
+function renderStock(){
+  document.getElementById('stock-title').textContent = 'รายการสต๊อก '+stockTitles[activeStock];
+  document.getElementById('stock-label-qty').textContent = stockQtyLabels[activeStock];
+  const list = state.stocks[activeStock];
+  const body = document.getElementById('stock-body');
+  body.innerHTML = list.slice().reverse().map(s=>{
+    const per = s.qty? (s.cost/s.qty):0;
+    return `<tr>
+      <td class="text-slate-400 text-xs">${escapeHtml(s.date||'')}</td>
+      <td>${fmtN(s.qty)}</td>
+      <td class="text-right text-amber-300">${fmt(s.cost)}</td>
+      <td class="text-right">${per? fmtN(per):'-'}</td>
+      <td>${escapeHtml(s.source||'')}</td>
+      <td class="text-right text-slate-500 text-xs">${escapeHtml(s.note||'')}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delStock('${s.id}')">ลบ</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('stock-empty').classList.toggle('hidden', list.length>0);
+  document.getElementById('stock-count').textContent = list.length;
+  const sumQty = list.reduce((a,b)=>a+(+b.qty||0),0);
+  const sumCost = list.reduce((a,b)=>a+(+b.cost||0),0);
+  document.getElementById('stock-sum-qty').textContent = fmtN(sumQty);
+  document.getElementById('stock-sum-cost').textContent = fmt(sumCost);
+  document.getElementById('stock-sum-avg').textContent = sumQty? fmtN(sumCost/sumQty)+' / หน่วย':'—';
+
+  const fs = document.getElementById('form-stock');
+  if(!fs.dataset.bound){
+    fs.dataset.bound = '1';
+    fs.querySelector('[name=date]').value = todayStr();
+    fs.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(fs); const obj = Object.fromEntries(fd.entries());
+      obj.id = uid(); obj.qty = parseFloat(obj.qty)||0; obj.cost = parseFloat(obj.cost)||0;
+      state.stocks[activeStock].push(obj); save(); fs.reset();
+      fs.querySelector('[name=date]').value = todayStr();
+      renderStock(); toast('✅ เพิ่มสต๊อกเรียบร้อย');
+    });
+  }
+}
+function delStock(id){
+  if(!confirm('ลบรายการนี้?')) return;
+  state.stocks[activeStock] = state.stocks[activeStock].filter(s=>s.id!==id); save(); renderStock();
+}
+
+/* =================== SUPPLY =================== */
+let activeSupplier = 'จอนชาวไร่';
+document.querySelectorAll('[data-supplier]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    document.querySelectorAll('[data-supplier]').forEach(t=>t.classList.remove('active'));
+    el.classList.add('active');
+    activeSupplier = el.dataset.supplier;
+    renderSupply();
+  });
+});
+function renderSupply(){
+  document.getElementById('supply-title').textContent = 'รายการ Supply — '+activeSupplier;
+  const list = state.supplies[activeSupplier]||[];
+  const body = document.getElementById('supply-body');
+  body.innerHTML = list.slice().reverse().map(s=>`
+    <tr>
+      <td class="text-slate-400 text-xs">${escapeHtml(s.date||'')}</td>
+      <td>${escapeHtml(s.item||'')}</td>
+      <td class="text-right">${fmtN(s.value)}</td>
+      <td class="text-right text-amber-300">${fmt(s.cost)}</td>
+      <td>${pillStatus(s.status)}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delSupply('${s.id}')">ลบ</button></td>
+    </tr>`).join('');
+  document.getElementById('supply-empty').classList.toggle('hidden', list.length>0);
+
+  const f = document.getElementById('form-supply');
+  if(!f.dataset.bound){
+    f.dataset.bound='1';
+    f.querySelector('[name=date]').value = todayStr();
+    f.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(f); const obj = Object.fromEntries(fd.entries());
+      obj.id=uid(); obj.value=parseFloat(obj.value)||0; obj.cost=parseFloat(obj.cost)||0;
+      state.supplies[activeSupplier].push(obj); save(); f.reset();
+      f.querySelector('[name=date]').value = todayStr();
+      renderSupply(); toast('✅ เพิ่ม Supply เรียบร้อย');
+    });
+  }
+  // stat cards
+  const sums = ['จอนชาวไร่','Kingpro','Over','24BuyM'].map(k=>(state.supplies[k]||[]).reduce((a,b)=>a+(+b.cost||0),0));
+  ['supply-stat-1','supply-stat-2','supply-stat-3','supply-stat-4'].forEach((id,i)=>{
+    document.getElementById(id).textContent = fmt(sums[i]);
+  });
+}
+function delSupply(id){
+  if(!confirm('ลบ Supply นี้?')) return;
+  state.supplies[activeSupplier] = state.supplies[activeSupplier].filter(s=>s.id!==id);
+  save(); renderSupply();
+}
+function pillStatus(s){
+  const map = {'ได้รับแล้ว':'good','รอจัดส่ง':'warn','กำลังส่ง':'info','มีปัญหา':'bad'};
+  const c = map[s]||'info';
+  return `<span class="pill pill-${c}">${escapeHtml(s||'-')}</span>`;
+}
+
+/* =================== ANALYZE =================== */
+function renderAnalyze(){
+  const tx = state.transactions;
+  if(!tx.length){
+    document.getElementById('analysis-text').textContent = 'ยังไม่มีข้อมูลพอสำหรับการวิเคราะห์ — เริ่มบันทึกการขายในหน้า "เติมเกม" ก่อน';
+    document.querySelector('#sku-top tbody').innerHTML = '';
+    document.querySelector('#sku-trend tbody').innerHTML = '';
+    return;
+  }
+  const byGame = {};
+  tx.forEach(t=>{
+    const g = t.game||'?'; byGame[g] = byGame[g]||{name:g,count:0,cost:0,sales:0};
+    byGame[g].count++; byGame[g].cost+=+t.cost||0; byGame[g].sales+=+t.sales||0;
+  });
+  const arr = Object.values(byGame).map(g=>({...g, profit:g.sales-g.cost, margin:g.sales? (g.sales-g.cost)/g.sales*100 : 0}));
+  const top = arr.slice().sort((a,b)=>b.count-a.count).slice(0,15);
+  document.querySelector('#sku-top tbody').innerHTML = top.map((g,i)=>`
+    <tr>
+      <td class="text-slate-400">${i+1}</td>
+      <td class="font-medium">${escapeHtml(g.name)}</td>
+      <td class="text-right">${g.count}</td>
+      <td class="text-right text-cyan-300">${fmt(g.sales)}</td>
+      <td class="text-right ${g.profit>=0?'text-emerald-300':'text-rose-300'}">${fmt(g.profit)}</td>
+      <td class="text-right">${g.margin.toFixed(1)}%</td>
+    </tr>`).join('');
+
+  // trend last 7 vs prev 7
+  const today = new Date();
+  const cutoff7 = new Date(today.getTime()-7*86400000);
+  const cutoff14 = new Date(today.getTime()-14*86400000);
+  const last7 = {}, prev7 = {};
+  tx.forEach(t=>{
+    if(!t.date) return; const d = new Date(t.date);
+    const g = t.game||'?';
+    if(d>=cutoff7) last7[g] = (last7[g]||0)+1;
+    else if(d>=cutoff14) prev7[g] = (prev7[g]||0)+1;
+  });
+  const allGames = Array.from(new Set([...Object.keys(last7), ...Object.keys(prev7)]));
+  const trend = allGames.map(g=>{
+    const a = last7[g]||0, b = prev7[g]||0;
+    const change = b? ((a-b)/b*100) : (a? 100:0);
+    return {g,a,b,change};
+  }).sort((x,y)=>y.change-x.change).slice(0,15);
+  document.querySelector('#sku-trend tbody').innerHTML = trend.map(t=>`
+    <tr>
+      <td class="font-medium">${escapeHtml(t.g)}</td>
+      <td class="text-right">${t.a}</td>
+      <td class="text-right text-slate-500">${t.b}</td>
+      <td class="text-right ${t.change>=0?'text-emerald-300':'text-rose-300'}">${t.change>=0?'▲':'▼'} ${Math.abs(t.change).toFixed(0)}%</td>
+    </tr>`).join('');
+
+  // narrative analysis
+  document.getElementById('analysis-text').textContent = buildAnalysis(tx, arr, trend);
+}
+function buildAnalysis(tx, arr, trend){
+  const totalSales = tx.reduce((s,t)=>s+(+t.sales||0),0);
+  const totalCost = tx.reduce((s,t)=>s+(+t.cost||0),0);
+  const totalProfit = totalSales - totalCost;
+  const margin = totalSales? (totalProfit/totalSales*100):0;
+  const topByCount = arr.slice().sort((a,b)=>b.count-a.count)[0];
+  const topByProfit = arr.slice().sort((a,b)=>b.profit-a.profit)[0];
+  const bestMargin = arr.filter(g=>g.count>=2).slice().sort((a,b)=>b.margin-a.margin)[0];
+  const losing = arr.filter(g=>g.profit<0);
+  const channelMap = {};
+  tx.forEach(t=>{ channelMap[t.channel||'?']=(channelMap[t.channel||'?']||0)+1; });
+  const topChannel = Object.entries(channelMap).sort((a,b)=>b[1]-a[1])[0];
+  const stockMap = {};
+  tx.forEach(t=>{ const k=stockLabel(t.stockType); stockMap[k]=(stockMap[k]||0)+(+t.cost||0); });
+  const topStock = Object.entries(stockMap).sort((a,b)=>b[1]-a[1])[0];
+  const trendingUp = trend.filter(t=>t.change>0 && t.a>0).slice(0,3).map(t=>t.g);
+  const trendingDown = trend.filter(t=>t.change<0 && t.b>0).slice(-3).map(t=>t.g);
+
+  let txt = `📊 สรุปผลรวม\n`;
+  txt += `ร้าน Termthukshop มีรายการขายทั้งหมด ${tx.length} รายการ ยอดขายรวม ${fmt(totalSales)} ต้นทุนรวม ${fmt(totalCost)} ทำกำไรได้ ${fmt(totalProfit)} (Margin เฉลี่ย ${margin.toFixed(1)}%)\n\n`;
+  txt += `🏆 SKU ขายดี\n`;
+  if(topByCount) txt += `• เกมที่ขายบ่อยที่สุดคือ "${topByCount.name}" จำนวน ${topByCount.count} รายการ ทำกำไร ${fmt(topByCount.profit)}\n`;
+  if(topByProfit && topByProfit.name!==topByCount?.name) txt += `• เกมที่ทำกำไรสูงสุดคือ "${topByProfit.name}" รวม ${fmt(topByProfit.profit)}\n`;
+  if(bestMargin) txt += `• เกมที่อัตรากำไรสูงสุด (ขายอย่างน้อย 2 รายการ) คือ "${bestMargin.name}" Margin ${bestMargin.margin.toFixed(1)}%\n`;
+  txt += `\n💳 ช่องทาง / สต๊อก\n`;
+  if(topChannel) txt += `• ลูกค้าใช้ช่องทาง "${topChannel[0]}" มากที่สุด (${topChannel[1]} ครั้ง)\n`;
+  if(topStock) txt += `• สต๊อกที่ใช้เติมเยอะที่สุด (ตามมูลค่าต้นทุน) คือ ${topStock[0]} รวม ${fmt(topStock[1])}\n`;
+  txt += `\n📈 Trend 7 วันล่าสุด\n`;
+  if(trendingUp.length) txt += `• เกมมาแรง: ${trendingUp.join(', ')}\n`;
+  if(trendingDown.length) txt += `• เกมที่ความถี่ลดลง: ${trendingDown.join(', ')}\n`;
+  if(losing.length){
+    txt += `\n⚠️ ข้อควรระวัง\n• มีเกมที่ขาดทุน ${losing.length} เกม: ${losing.slice(0,5).map(g=>g.name).join(', ')}${losing.length>5?'...':''} — ควรทบทวนต้นทุน/ราคาขาย\n`;
+  }
+  txt += `\n💡 ข้อเสนอแนะ\n`;
+  txt += `• เน้นโปรโมต SKU เด่น และจัดสต๊อก "${topByCount?.name||'-'}" ให้พอใช้\n`;
+  if(margin<10) txt += `• Margin ต่ำกว่า 10% — ควรเจรจาต้นทุน Supply ให้ถูกลง หรือปรับราคาขายขึ้น\n`;
+  txt += `• ติดตาม Trend ทุกสัปดาห์ ปรับสต๊อกตามเกมมาแรง`;
+  return txt;
+}
+
+/* =================== GAMES / CALC =================== */
+function renderGames(){
+  const tx = state.transactions;
+  const byGame = {};
+  tx.forEach(t=>{
+    const g = t.game||'?'; byGame[g] = byGame[g]||{name:g,count:0,cost:0,sales:0};
+    byGame[g].count++; byGame[g].cost+=+t.cost||0; byGame[g].sales+=+t.sales||0;
+  });
+  // include manual list
+  state.games.forEach(g=>{ if(!byGame[g.name]) byGame[g.name] = {name:g.name,count:0,cost:0,sales:0,manual:true,category:g.category||''}; });
+  const q = (document.getElementById('games-search').value||'').toLowerCase();
+  const list = Object.values(byGame).filter(g=>g.name.toLowerCase().includes(q)).sort((a,b)=>b.count-a.count);
+  const body = document.getElementById('games-body');
+  body.innerHTML = list.map(g=>{
+    const avgC = g.count? g.cost/g.count : 0;
+    const avgS = g.count? g.sales/g.count : 0;
+    const avgP = avgS-avgC;
+    const margin = avgS? (avgP/avgS*100):0;
+    return `<tr>
+      <td class="font-medium">${escapeHtml(g.name)}${g.manual?' <span class="pill pill-info">รายชื่อ</span>':''}</td>
+      <td class="text-right">${g.count}</td>
+      <td class="text-right text-amber-300">${g.count? fmt(avgC):'-'}</td>
+      <td class="text-right text-cyan-300">${g.count? fmt(avgS):'-'}</td>
+      <td class="text-right ${avgP>=0?'text-emerald-300':'text-rose-300'}">${g.count? fmt(avgP):'-'}</td>
+      <td class="text-right">${g.count? margin.toFixed(1)+'%':'-'}</td>
+      <td><button class="btn btn-ghost text-xs" onclick="delGame('${escapeJs(g.name)}')">ลบ</button></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('games-empty').classList.toggle('hidden', list.length>0);
+
+  const fg = document.getElementById('form-game');
+  if(!fg.dataset.bound){
+    fg.dataset.bound='1';
+    fg.addEventListener('submit', e=>{
+      e.preventDefault();
+      const fd = new FormData(fg); const obj = Object.fromEntries(fd.entries());
+      if(!state.games.find(g=>g.name===obj.name)){ state.games.push(obj); save(); }
+      fg.reset(); renderGames(); fillDatalists(); toast('✅ เพิ่มเกมแล้ว');
+    });
+  }
+
+  // calc table preview
+  const presets = [10,15,20,25,30,40,50];
+  document.getElementById('calc-table').innerHTML = presets.map(m=>`<div class="flex justify-between"><span class="text-slate-400">+${m}%</span><span class="font-mono">×${(1/(1-m/100)).toFixed(3)}</span></div>`).join('');
+}
+document.getElementById('games-search').addEventListener('input', renderGames);
+function delGame(name){
+  if(!confirm('ลบ "'+name+'" ออกจากรายชื่อ? (ประวัติการขายยังคงเดิม)')) return;
+  state.games = state.games.filter(g=>g.name!==name);
+  save(); renderGames();
+}
+function runCalc(){
+  const c = parseFloat(document.getElementById('calc-cost').value)||0;
+  const m = parseFloat(document.getElementById('calc-margin').value)||0;
+  const price = m>=100? c : c/(1-m/100);
+  document.getElementById('calc-price').textContent = fmt(price);
+  document.getElementById('calc-profit').textContent = fmt(price-c);
+}
+
+/* =================== UTILS =================== */
+function escapeHtml(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escapeJs(s){ return (s||'').replace(/'/g,"\\'"); }
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='termthukshop_backup.json'; a.click();
+  toast('⬇️ ส่งออกข้อมูลเรียบร้อย');
+}
+function importData(e){
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ try{ const obj = JSON.parse(r.result); state = Object.assign(initState(), obj); save(); refreshAll(); toast('✅ นำเข้าข้อมูลแล้ว'); }catch(err){ alert('ไฟล์ไม่ถูกต้อง: '+err.message); } };
+  r.readAsText(f);
+}
+function resetData(){
+  if(!confirm('ลบข้อมูลทั้งหมด? การกระทำนี้ย้อนไม่ได้')) return;
+  if(!confirm('ยืนยันอีกครั้ง — ลบทุกอย่างจริง ๆ ?')) return;
+  state = initState(); save(); refreshAll(); toast('🗑️ ลบข้อมูลทั้งหมด');
+}
+function refreshAll(){
+  // re-render currently visible page + overview baseline
+  const active = document.querySelector('.menu-item.active')?.dataset.page || 'overview';
+  refreshPage(active);
+}
+
+/* =================== INIT =================== */
+refreshPage('overview');
+</script>
+</body>
+</html>

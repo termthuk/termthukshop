@@ -1,0 +1,17 @@
+# LibreOffice / Office lock files
+.~lock.*#
+~$*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Test / temp
+test_save.xlsx
+*.tmp
+*.bak
+
+# Backups
+*_backup.json
+*.csv.bak

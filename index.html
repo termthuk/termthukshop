@@ -8,6 +8,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0f172a;--panel:#111827;--panel-2:#1f2937;--line:#374151;--text:#e5e7eb;--muted:#9ca3af;--accent:#22d3ee;}
@@ -678,28 +680,37 @@
       <div class="card mb-4">
         <div class="flex items-center justify-between flex-wrap gap-3">
           <h3 class="font-semibold">💎 สรุปปันผลรายเดือน</h3>
-          <div class="flex gap-2 items-center">
+          <div class="flex gap-2 items-center flex-wrap">
             <label class="text-xs text-slate-400">เดือน</label>
             <input id="dividend-month" type="month" class="input" style="max-width:160px">
+            <button class="btn btn-ghost text-xs" onclick="exportDividend('png')">🖼️ PNG</button>
+            <button class="btn btn-ghost text-xs" onclick="exportDividend('jpg')">📷 JPG</button>
+            <button class="btn btn-ghost text-xs" onclick="exportDividend('pdf')">📄 PDF</button>
           </div>
         </div>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
-        <div class="card"><div class="text-xs text-slate-400">ยอดขาย</div><div id="div-sales" class="text-xl font-bold text-cyan-300">฿0</div></div>
-        <div class="card"><div class="text-xs text-slate-400">ต้นทุน</div><div id="div-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
-        <div class="card"><div class="text-xs text-slate-400">กำไร</div><div id="div-profit" class="text-xl font-bold text-emerald-300">฿0</div><div class="text-xs text-slate-500 mt-1">หักค่าธรรมเนียม channel</div></div>
-        <div class="card"><div class="text-xs text-slate-400">ค่าใช้จ่าย</div><div id="div-expense" class="text-xl font-bold text-rose-300">฿0</div></div>
-        <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">กำไรสุทธิ</div><div id="div-net" class="text-xl font-bold text-emerald-300">฿0</div></div>
-      </div>
-      <div class="card">
-        <h3 class="font-semibold mb-3">📊 ปันผลผู้ถือหุ้น</h3>
-        <div class="overflow-x-auto scroll-thin">
-          <table>
-            <thead><tr><th>ชื่อ</th><th class="text-right">สัดส่วน (%)</th><th class="text-right">ปันผล (฿)</th></tr></thead>
-            <tbody id="dividend-body"></tbody>
-          </table>
+      <div id="dividend-export-area">
+        <div id="dividend-export-header" class="hidden mb-3 px-2 text-center">
+          <div class="text-lg font-bold">💎 ปันผลรายเดือน Termthukshop</div>
+          <div id="dividend-export-month" class="text-sm text-slate-400"></div>
         </div>
-        <div id="dividend-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ถือหุ้น — ไปเพิ่มที่เมนู "ต้นทุนเริ่ม"</div>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <div class="card"><div class="text-xs text-slate-400">ยอดขาย</div><div id="div-sales" class="text-xl font-bold text-cyan-300">฿0</div></div>
+          <div class="card"><div class="text-xs text-slate-400">ต้นทุน</div><div id="div-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
+          <div class="card"><div class="text-xs text-slate-400">กำไร</div><div id="div-profit" class="text-xl font-bold text-emerald-300">฿0</div><div class="text-xs text-slate-500 mt-1">หักค่าธรรมเนียม channel</div></div>
+          <div class="card"><div class="text-xs text-slate-400">ค่าใช้จ่าย</div><div id="div-expense" class="text-xl font-bold text-rose-300">฿0</div></div>
+          <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">กำไรสุทธิ</div><div id="div-net" class="text-xl font-bold text-emerald-300">฿0</div></div>
+        </div>
+        <div class="card">
+          <h3 class="font-semibold mb-3">📊 ปันผลผู้ถือหุ้น</h3>
+          <div class="overflow-x-auto scroll-thin">
+            <table>
+              <thead><tr><th>ชื่อ</th><th class="text-right">สัดส่วน (%)</th><th class="text-right">ปันผล (฿)</th></tr></thead>
+              <tbody id="dividend-body"></tbody>
+            </table>
+          </div>
+          <div id="dividend-empty" class="text-center text-slate-500 py-8 hidden">ยังไม่มีผู้ถือหุ้น — ไปเพิ่มที่เมนู "ต้นทุนเริ่ม"</div>
+        </div>
       </div>
     </section>
 
@@ -2066,6 +2077,49 @@ function renderDividend(){
   document.getElementById('dividend-empty').classList.toggle('hidden', list.length>0);
 }
 document.getElementById('dividend-month').addEventListener('change', renderDividend);
+
+async function exportDividend(format){
+  if(typeof html2canvas === 'undefined'){ alert('ไลบรารียังไม่โหลด — ลอง refresh'); return; }
+  const area = document.getElementById('dividend-export-area');
+  const header = document.getElementById('dividend-export-header');
+  const monthEl = document.getElementById('dividend-month');
+  const ym = monthEl.value || ymInTz(new Date());
+  // แสดงหัวกระดาษเฉพาะตอน export
+  document.getElementById('dividend-export-month').textContent = 'เดือน '+ym;
+  header.classList.remove('hidden');
+  toast('⏳ กำลังสร้างไฟล์...');
+  try {
+    const canvas = await html2canvas(area, {
+      backgroundColor: '#0b1220',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+    });
+    const stem = `termthukshop_ปันผล_${ym}`;
+    if(format === 'pdf'){
+      const { jsPDF } = window.jspdf;
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
+      const pdf = new jsPDF({ orientation: canvas.width > canvas.height ? 'landscape' : 'portrait', unit: 'pt', format: 'a4' });
+      const pw = pdf.internal.pageSize.getWidth();
+      const ph = pdf.internal.pageSize.getHeight();
+      const ratio = Math.min(pw / canvas.width, ph / canvas.height);
+      const w = canvas.width * ratio;
+      const h = canvas.height * ratio;
+      pdf.addImage(imgData, 'JPEG', (pw-w)/2, (ph-h)/2, w, h);
+      pdf.save(stem+'.pdf');
+    } else {
+      const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+      const ext = format === 'jpg' ? 'jpg' : 'png';
+      const data = canvas.toDataURL(mime, 0.95);
+      const a = document.createElement('a'); a.href = data; a.download = stem+'.'+ext; a.click();
+    }
+    toast('✅ Export '+format.toUpperCase()+' เรียบร้อย');
+  } catch(e){
+    alert('Export ล้มเหลว: '+(e.message||e));
+  } finally {
+    header.classList.add('hidden');
+  }
+}
 
 /* ============================================================
    USERS

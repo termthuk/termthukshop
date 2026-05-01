@@ -1120,10 +1120,28 @@ function renderTopup(){
       const { error } = await supa.from('transactions').insert(obj);
       btn.disabled = false; btn.textContent = '💾 บันทึก';
       if(error){ alert('บันทึกล้มเหลว: '+error.message); return; }
+      // ช่องทาง Credit → เพิ่มเข้าเมนู Credit / ค้างชำระ ด้วย
+      let creditAdded = false;
+      if(obj.channel === 'Credit'){
+        const creditObj = {
+          date: obj.date,
+          customer: obj.buyer,
+          game: obj.game,
+          sales: obj.sales,
+          cost: obj.cost,
+          note: obj.note || '',
+          status: 'unpaid',
+          created_by: currentUser.id
+        };
+        const { error: crErr } = await supa.from('credits').insert(creditObj);
+        if(crErr){ alert('บันทึก Credit ล้มเหลว: '+crErr.message); }
+        else creditAdded = true;
+      }
       f.reset(); f.querySelector('[name=date]').value = nowLocal(); updateProfitPreview();
       const newRemain = obj.stock_type && obj.stock_type !== 'none' ? stockRemaining(obj.stock_type) - obj.cost : null;
       const lbl = stockLabel(obj.stock_type);
-      toast(newRemain!=null ? `✅ บันทึกแล้ว — หัก ${lbl} ${fmt(obj.cost)} (เหลือ ${fmt(newRemain)})` : '✅ บันทึกการขายแล้ว');
+      const baseMsg = newRemain!=null ? `✅ บันทึกแล้ว — หัก ${lbl} ${fmt(obj.cost)} (เหลือ ${fmt(newRemain)})` : '✅ บันทึกการขายแล้ว';
+      toast(creditAdded ? baseMsg + ' + เพิ่มเข้า Credit (ค้างชำระ)' : baseMsg);
       fillStockOptions();
       updateStockHint();
     });

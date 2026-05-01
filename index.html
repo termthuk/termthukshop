@@ -1771,8 +1771,10 @@ function renderCredit(){
   document.getElementById('credit-body').innerHTML = list.map(c=>{
     const profit = (+c.sales||0) - (+c.cost||0);
     const pill = c.status==='paid' ? '<span class="pill pill-good">ชำระแล้ว</span>' : '<span class="pill pill-warn">ค้างชำระ</span>';
-    const btnText = c.status==='paid' ? 'ทำเป็นค้าง' : 'ทำเป็นชำระ';
+    const btnText = c.status==='paid' ? 'คืนค้างชำระ' : 'ชำระแล้ว';
     const btnClass = c.status==='paid' ? 'btn-ghost' : 'btn';
+    const toggleBtn = canWrite() ? `<button class="${btnClass} text-xs" onclick="toggleCreditStatus('${c.id}','${c.status}')">${btnText}</button>` : '';
+    const delBtn = currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delCredit('${c.id}')">ลบ</button>` : '';
     return `<tr>
       <td class="text-slate-400 text-xs whitespace-nowrap">${dtInTz(c.date)}</td>
       <td>${escapeHtml(c.customer||'')}</td>
@@ -1781,12 +1783,7 @@ function renderCredit(){
       <td class="text-right text-amber-300">${fmt(c.cost)}</td>
       <td class="text-right ${profit>=0?'text-emerald-300':'text-rose-300'} font-semibold">${fmt(profit)}</td>
       <td>${pill}</td>
-      <td class="flex gap-1">
-        ${currentRole==='admin' ? `
-          <button class="${btnClass} text-xs" onclick="toggleCreditStatus('${c.id}','${c.status}')">${btnText}</button>
-          <button class="btn btn-ghost text-xs" style="color:#f87171" onclick="delCredit('${c.id}')">ลบ</button>
-        ` : ''}
-      </td>
+      <td class="flex gap-1">${toggleBtn}${delBtn}</td>
     </tr>`;
   }).join('');
   document.getElementById('credit-empty').classList.toggle('hidden', list.length>0);
@@ -1821,7 +1818,7 @@ function renderCredit(){
 }
 document.getElementById('credit-filter').addEventListener('change', renderCredit);
 async function toggleCreditStatus(id, current){
-  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่แก้สถานะได้'); return; }
+  if(!canWrite()){ alert('คุณไม่มีสิทธิ์แก้สถานะ'); return; }
   const next = current==='paid' ? 'unpaid' : 'paid';
   const update = { status: next, paid_at: next==='paid' ? new Date().toISOString() : null };
   const { error } = await supa.from('credits').update(update).eq('id', id);

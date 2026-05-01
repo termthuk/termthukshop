@@ -684,9 +684,10 @@
           </div>
         </div>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
         <div class="card"><div class="text-xs text-slate-400">ยอดขาย</div><div id="div-sales" class="text-xl font-bold text-cyan-300">฿0</div></div>
         <div class="card"><div class="text-xs text-slate-400">ต้นทุน</div><div id="div-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">กำไร</div><div id="div-profit" class="text-xl font-bold text-emerald-300">฿0</div><div class="text-xs text-slate-500 mt-1">หักค่าธรรมเนียม channel</div></div>
         <div class="card"><div class="text-xs text-slate-400">ค่าใช้จ่าย</div><div id="div-expense" class="text-xl font-bold text-rose-300">฿0</div></div>
         <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">กำไรสุทธิ</div><div id="div-net" class="text-xl font-bold text-emerald-300">฿0</div></div>
       </div>
@@ -2039,11 +2040,15 @@ function renderDividend(){
   const sales = tx.reduce((a,b)=>a+(+b.sales||0),0);
   const cost = tx.reduce((a,b)=>a+(+b.cost||0),0);
   const fees = tx.reduce((a,b)=>a+txFee(b),0);
+  const profit = sales - cost - fees;
   const expenseTotal = exp.reduce((a,b)=>a+(+b.amount||0),0);
-  const net = sales - cost - fees - expenseTotal;
+  const net = profit - expenseTotal;
   document.getElementById('div-sales').textContent = fmt(sales);
   document.getElementById('div-cost').textContent = fmt(cost);
   document.getElementById('div-expense').textContent = fmt(expenseTotal);
+  const profitEl = document.getElementById('div-profit');
+  profitEl.textContent = fmt(profit);
+  profitEl.className = 'text-xl font-bold '+(profit>=0?'text-emerald-300':'text-rose-300');
   const netEl = document.getElementById('div-net');
   netEl.textContent = fmt(net);
   netEl.className = 'text-xl font-bold '+(net>=0?'text-emerald-300':'text-rose-300');

@@ -67,7 +67,9 @@
 <div id="login-page" class="hidden min-h-screen flex items-center justify-center p-6">
   <div class="card w-full max-w-md fade-in">
     <div class="flex items-center gap-3 mb-6">
-      <div class="w-12 h-12 rounded-xl flex items-center justify-center text-2xl" style="background:linear-gradient(135deg,#06b6d4,#7c3aed);">🎮</div>
+      <div class="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden" style="background:#fff;">
+        <img src="logo.png.jpg" alt="Termthukshop" class="w-full h-full object-contain">
+      </div>
       <div>
         <h1 class="font-bold text-xl">Termthukshop</h1>
         <div class="text-sm text-slate-400">เข้าสู่ระบบ</div>
@@ -99,7 +101,9 @@
 <div id="app" class="hidden flex min-h-screen">
   <aside class="w-64 glass border-r border-white/5 p-4 flex flex-col" style="position:sticky; top:0; height:100vh;">
     <div class="flex items-center gap-3 px-2 mb-6 mt-2">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,#06b6d4,#7c3aed);"><span class="text-xl">🎮</span></div>
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden" style="background:#fff;">
+        <img src="logo.png.jpg" alt="Termthukshop" class="w-full h-full object-contain">
+      </div>
       <div>
         <div class="font-bold text-lg leading-tight">Termthukshop</div>
         <div class="text-xs text-slate-400">Cloud Dashboard</div>
@@ -1070,11 +1074,18 @@ function dtInTz(input){
   return ymd + ' ' + hm;
 }
 
+// ค่าธรรมเนียมช่องทางการชำระ (หักจากยอดขาย)
+const CHANNEL_FEES = { 'True': 0.029 };
+function channelFeeRate(channel){ return CHANNEL_FEES[channel] || 0; }
+function txFee(t){ return (+t.sales||0) * channelFeeRate(t.channel); }
+function txProfit(t){ return (+t.sales||0) - (+t.cost||0) - txFee(t); }
+
 function renderOverview(){
   const tx = state.transactions.filter(t=>inDateFilter(t.date));
   const cost = tx.reduce((s,t)=>s+(+t.cost||0),0);
   const sales = tx.reduce((s,t)=>s+(+t.sales||0),0);
-  const profit = sales - cost;
+  const fees = tx.reduce((s,t)=>s+txFee(t),0);
+  const profit = sales - cost - fees;
   document.getElementById('kpi-cost').textContent = fmt(cost);
   document.getElementById('kpi-sales').textContent = fmt(sales);
   document.getElementById('kpi-profit').textContent = fmt(profit);
@@ -1115,7 +1126,7 @@ function renderOverview(){
   drawDoughnut('chart-stockmix', Object.keys(mix), Object.values(mix));
 
   const byGame = {};
-  tx.forEach(t=>{ const g=t.game||'?'; byGame[g]=byGame[g]||{c:0,p:0}; byGame[g].c++; byGame[g].p+=(+t.sales||0)-(+t.cost||0); });
+  tx.forEach(t=>{ const g=t.game||'?'; byGame[g]=byGame[g]||{c:0,p:0}; byGame[g].c++; byGame[g].p+=txProfit(t); });
   const top10 = Object.entries(byGame).sort((a,b)=>b[1].c-a[1].c).slice(0,10);
   drawBar('chart-games', top10.map(x=>x[0]), top10.map(x=>x[1].c), '#22d3ee');
   const top10p = Object.entries(byGame).sort((a,b)=>b[1].p-a[1].p).slice(0,10);
@@ -1300,17 +1311,22 @@ function updateProfitPreview(){
   const f = document.getElementById('form-topup'); if(!f) return;
   const c = parseFloat(f.querySelector('[name=cost]').value)||0;
   const s = parseFloat(f.querySelector('[name=sales]').value)||0;
-  const p = s-c;
+  const ch = f.querySelector('[name=channel]').value;
+  const feeRate = channelFeeRate(ch);
+  const fee = s * feeRate;
+  const p = s - c - fee;
   document.getElementById('form-profit').textContent = fmt(p);
   document.getElementById('form-profit').className = 'text-2xl font-bold '+(p>=0?'text-emerald-300':'text-rose-300');
-  document.getElementById('form-margin').textContent = 'Margin: '+(s? (p/s*100).toFixed(1):'0')+'%';
+  const marginPct = s ? (p/s*100).toFixed(1) : '0';
+  const feeTxt = feeRate>0 ? ` • หัก ${ch} ${(feeRate*100).toFixed(1)}% (-${fmt(fee)})` : '';
+  document.getElementById('form-margin').textContent = `Margin: ${marginPct}%${feeTxt}`;
 }
 function renderRecent(){
   const recent = state.transactions.slice(0,15);
   const list = document.getElementById('recent-list');
   if(!recent.length){ list.innerHTML='<div class="text-slate-500 text-sm text-center py-6">ยังไม่มีรายการ</div>'; return; }
   list.innerHTML = recent.map(t=>{
-    const p = (+t.sales||0)-(+t.cost||0);
+    const p = txProfit(t);
     return `<div class="card" style="padding:10px;">
       <div class="flex items-center justify-between"><div class="text-sm font-semibold">${escapeHtml(t.game||'?')}</div><div class="${p>=0?'text-emerald-300':'text-rose-300'} text-sm font-bold">${fmt(p)}</div></div>
       <div class="text-xs text-slate-400 mt-1">${escapeHtml(t.buyer||'')} • ${escapeHtml(t.channel||'')} • ${dtInTz(t.date)}</div>
@@ -1333,7 +1349,7 @@ function renderHistory(){
   const body = document.getElementById('hist-body');
   const isAdmin = currentRole === 'admin';
   body.innerHTML = rows.map(t=>{
-    const p = (+t.sales||0)-(+t.cost||0);
+    const p = txProfit(t);
     return `<tr>
       <td class="text-slate-400 text-xs whitespace-nowrap">${dtInTz(t.date)}</td>
       <td>${escapeHtml(t.buyer||'')}</td><td>${escapeHtml(t.seller||'')}</td>
@@ -1381,9 +1397,9 @@ function exportFilenameStem(){
   return `termthukshop_history${range}_${today}`;
 }
 function exportCSV(){
-  const rows = [['วันที่','ผู้ซื้อ','ผู้ขาย','เกม','ช่องทาง','สต๊อก','ต้นทุน','ยอดขาย','กำไร','หมายเหตุ']];
+  const rows = [['วันที่','ผู้ซื้อ','ผู้ขาย','เกม','ช่องทาง','สต๊อก','ต้นทุน','ยอดขาย','ค่าธรรมเนียม','กำไร','หมายเหตุ']];
   exportTxRows().forEach(t=>{
-    rows.push([dtInTz(t.date),t.buyer,t.seller,t.game,t.channel,stockLabel(t.stock_type),t.cost,t.sales,(+t.sales||0)-(+t.cost||0),t.note||'']);
+    rows.push([dtInTz(t.date),t.buyer,t.seller,t.game,t.channel,stockLabel(t.stock_type),t.cost,t.sales,txFee(t),txProfit(t),t.note||'']);
   });
   const csv = '﻿'+rows.map(r=>r.map(v=>`"${(v??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download = exportFilenameStem()+'.csv'; a.click();
@@ -1400,15 +1416,17 @@ function exportXLSX(){
     'สต๊อก': stockLabel(t.stock_type),
     'ต้นทุน': +t.cost||0,
     'ยอดขาย': +t.sales||0,
-    'กำไร': (+t.sales||0)-(+t.cost||0),
+    'ค่าธรรมเนียม': txFee(t),
+    'กำไร': txProfit(t),
     'หมายเหตุ': t.note||''
   }));
   // Summary row
   const totalCost = data.reduce((a,b)=>a+b['ต้นทุน'],0);
   const totalSales = data.reduce((a,b)=>a+b['ยอดขาย'],0);
+  const totalFee = data.reduce((a,b)=>a+b['ค่าธรรมเนียม'],0);
   const totalProfit = data.reduce((a,b)=>a+b['กำไร'],0);
   data.push({});
-  data.push({'วันที่/เวลา':'รวมทั้งหมด','ต้นทุน':totalCost,'ยอดขาย':totalSales,'กำไร':totalProfit,'หมายเหตุ':`${data.length-2} รายการ`});
+  data.push({'วันที่/เวลา':'รวมทั้งหมด','ต้นทุน':totalCost,'ยอดขาย':totalSales,'ค่าธรรมเนียม':totalFee,'กำไร':totalProfit,'หมายเหตุ':`${data.length-2} รายการ`});
 
   const ws = XLSX.utils.json_to_sheet(data);
   ws['!cols'] = [
@@ -1568,10 +1586,13 @@ function renderAnalyze(){
   }
   const byGame = {};
   tx.forEach(t=>{
-    const g = t.game||'?'; byGame[g] = byGame[g]||{name:g,count:0,cost:0,sales:0};
-    byGame[g].count++; byGame[g].cost+=+t.cost||0; byGame[g].sales+=+t.sales||0;
+    const g = t.game||'?'; byGame[g] = byGame[g]||{name:g,count:0,cost:0,sales:0,fee:0};
+    byGame[g].count++; byGame[g].cost+=+t.cost||0; byGame[g].sales+=+t.sales||0; byGame[g].fee+=txFee(t);
   });
-  const arr = Object.values(byGame).map(g=>({...g,profit:g.sales-g.cost,margin:g.sales?(g.sales-g.cost)/g.sales*100:0}));
+  const arr = Object.values(byGame).map(g=>{
+    const profit = g.sales-g.cost-g.fee;
+    return {...g,profit,margin:g.sales?profit/g.sales*100:0};
+  });
   const top = arr.slice().sort((a,b)=>b.count-a.count).slice(0,15);
   document.querySelector('#sku-top tbody').innerHTML = top.map((g,i)=>`
     <tr><td class="text-slate-400">${i+1}</td><td class="font-medium">${escapeHtml(g.name)}</td>
@@ -1944,8 +1965,9 @@ function renderDividend(){
   const exp = state.expenses.filter(e=>inMonth(e.date));
   const sales = tx.reduce((a,b)=>a+(+b.sales||0),0);
   const cost = tx.reduce((a,b)=>a+(+b.cost||0),0);
+  const fees = tx.reduce((a,b)=>a+txFee(b),0);
   const expenseTotal = exp.reduce((a,b)=>a+(+b.amount||0),0);
-  const net = sales - cost - expenseTotal;
+  const net = sales - cost - fees - expenseTotal;
   document.getElementById('div-sales').textContent = fmt(sales);
   document.getElementById('div-cost').textContent = fmt(cost);
   document.getElementById('div-expense').textContent = fmt(expenseTotal);

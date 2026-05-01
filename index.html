@@ -732,7 +732,7 @@ let supa = null;
 let currentUser = null;
 let currentRole = 'staff';
 let currentActive = true;
-const MEMBER_PAGES = new Set(['topup','history','stock','credit','games']);
+const MEMBER_PAGES = new Set(['topup','history','stock','credit','games','supply']);
 const ADMIN_ONLY_PAGES = new Set(['capital','users']);
 function canSeePage(page){
   if(currentRole === 'admin') return true;

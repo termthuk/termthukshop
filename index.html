@@ -115,6 +115,7 @@
       <div class="menu-item active" data-page="overview"><span>📊</span><span>ภาพรวม</span></div>
       <div class="menu-item" data-page="topup"><span>💳</span><span>เติมเกม</span></div>
       <div class="menu-item" data-page="history"><span>📜</span><span>ประวัติการขาย</span></div>
+      <div class="menu-item" data-page="daily"><span>📅</span><span>สรุปยอดขายรายวัน</span></div>
       <div class="menu-item" data-page="stock"><span>📦</span><span>สต๊อก / Rate</span></div>
       <div class="menu-item" data-page="supply"><span>💳</span><span>ยอดฝากเครดิต</span></div>
       <div class="menu-item" data-page="credit"><span>📒</span><span>Credit / ค้างชำระ</span></div>
@@ -301,6 +302,37 @@
           </table>
         </div>
         <div id="hist-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีประวัติการขาย</div>
+      </div>
+    </section>
+
+    <!-- สรุปยอดขายรายวัน -->
+    <section id="page-daily" class="page hidden fade-in">
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+        <div class="card"><div class="text-xs text-slate-400">จำนวนวัน</div><div id="daily-days" class="text-xl font-bold">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ลูกค้ารวม (unique)</div><div id="daily-customers" class="text-xl font-bold text-cyan-300">0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ยอดขายรวม</div><div id="daily-sales" class="text-xl font-bold text-cyan-300">฿0</div></div>
+        <div class="card"><div class="text-xs text-slate-400">ต้นทุนรวม</div><div id="daily-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
+        <div class="card" style="background:rgba(34,197,94,.08); border-color:rgba(34,197,94,.3);"><div class="text-xs text-slate-400">กำไรรวม</div><div id="daily-profit" class="text-xl font-bold text-emerald-300">฿0</div></div>
+      </div>
+      <div class="card">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 class="font-semibold">📅 สรุปยอดขายรายวัน</h3>
+          <button class="btn btn-ghost text-xs" onclick="exportDailyXLSX()">📊 Export Excel</button>
+        </div>
+        <div class="overflow-x-auto scroll-thin">
+          <table>
+            <thead><tr>
+              <th>วันที่</th>
+              <th class="text-right">จำนวนรายการ</th>
+              <th class="text-right">ลูกค้า (คน)</th>
+              <th class="text-right">ยอดขาย</th>
+              <th class="text-right">ต้นทุน</th>
+              <th class="text-right">กำไร</th>
+            </tr></thead>
+            <tbody id="daily-body"></tbody>
+          </table>
+        </div>
+        <div id="daily-empty" class="text-center text-slate-500 py-10 hidden">ยังไม่มีข้อมูลในช่วงเวลานี้</div>
       </div>
     </section>
 
@@ -733,7 +765,7 @@ let supa = null;
 let currentUser = null;
 let currentRole = 'staff';
 let currentActive = true;
-const MEMBER_PAGES = new Set(['topup','history','stock','credit','games','supply']);
+const MEMBER_PAGES = new Set(['topup','history','stock','credit','games','supply','daily']);
 const ADMIN_ONLY_PAGES = new Set(['capital','users']);
 function canSeePage(page){
   if(currentRole === 'admin') return true;
@@ -1004,6 +1036,7 @@ const PAGES = {
   overview:{title:'ภาพรวม', sub:'สรุปต้นทุน ยอดขาย และกำไร'},
   topup:{title:'เติมเกม', sub:'บันทึกการขายเกม'},
   history:{title:'ประวัติการขาย', sub:'รายการขายทั้งหมด'},
+  daily:{title:'สรุปยอดขายรายวัน', sub:'รวมยอดขาย/ต้นทุน/กำไร และจำนวนลูกค้าแยกตามวัน'},
   stock:{title:'สต๊อก / Rate', sub:'จัดการสต๊อก'},
   supply:{title:'ยอดฝากเครดิต', sub:'รายการเครดิตที่ฝากกับ Supplier'},
   credit:{title:'Credit / ค้างชำระ', sub:'รายการเครดิตลูกค้า'},
@@ -1041,6 +1074,7 @@ function refreshPage(p){
   if(p==='overview') renderOverview();
   if(p==='topup') renderTopup();
   if(p==='history') renderHistory();
+  if(p==='daily') renderDaily();
   if(p==='stock') renderStock();
   if(p==='supply') renderSupply();
   if(p==='credit') renderCredit();
@@ -1359,6 +1393,90 @@ function renderRecent(){
 /* ============================================================
    HISTORY
    ============================================================ */
+/* ============================================================
+   DAILY SUMMARY
+   ============================================================ */
+function dailyAggregate(){
+  const tx = state.transactions.filter(t=>inDateFilter(t.date));
+  const byDay = {};
+  tx.forEach(t=>{
+    const d = ymdInTz(t.date);
+    if(!d) return;
+    if(!byDay[d]) byDay[d] = { date:d, count:0, customers:new Set(), sales:0, cost:0, fee:0 };
+    byDay[d].count++;
+    if(t.buyer) byDay[d].customers.add((t.buyer||'').trim().toLowerCase());
+    byDay[d].sales += +t.sales||0;
+    byDay[d].cost += +t.cost||0;
+    byDay[d].fee += txFee(t);
+  });
+  return Object.values(byDay).map(d=>({
+    date:d.date,
+    count:d.count,
+    customers:d.customers.size,
+    sales:d.sales,
+    cost:d.cost,
+    fee:d.fee,
+    profit:d.sales - d.cost - d.fee,
+  })).sort((a,b)=>b.date.localeCompare(a.date));
+}
+function renderDaily(){
+  const arr = dailyAggregate();
+  const body = document.getElementById('daily-body');
+  body.innerHTML = arr.map(d=>{
+    const cls = d.profit>=0 ? 'text-emerald-300' : 'text-rose-300';
+    return `<tr>
+      <td class="font-medium whitespace-nowrap">${escapeHtml(d.date)}</td>
+      <td class="text-right">${d.count}</td>
+      <td class="text-right text-cyan-300">${d.customers}</td>
+      <td class="text-right text-cyan-300">${fmt(d.sales)}</td>
+      <td class="text-right text-amber-300">${fmt(d.cost)}</td>
+      <td class="text-right font-semibold ${cls}">${fmt(d.profit)}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('daily-empty').classList.toggle('hidden', arr.length>0);
+  const totalDays = arr.length;
+  const totalCustomers = new Set(state.transactions.filter(t=>inDateFilter(t.date)).map(t=>(t.buyer||'').trim().toLowerCase()).filter(Boolean)).size;
+  const totalSales = arr.reduce((s,d)=>s+d.sales,0);
+  const totalCost = arr.reduce((s,d)=>s+d.cost,0);
+  const totalProfit = arr.reduce((s,d)=>s+d.profit,0);
+  document.getElementById('daily-days').textContent = totalDays;
+  document.getElementById('daily-customers').textContent = totalCustomers;
+  document.getElementById('daily-sales').textContent = fmt(totalSales);
+  document.getElementById('daily-cost').textContent = fmt(totalCost);
+  const pe = document.getElementById('daily-profit');
+  pe.textContent = fmt(totalProfit);
+  pe.className = 'text-xl font-bold '+(totalProfit>=0?'text-emerald-300':'text-rose-300');
+}
+function exportDailyXLSX(){
+  if(typeof XLSX === 'undefined'){ alert('ไลบรารี Excel ยังไม่โหลด — รอสักครู่'); return; }
+  const arr = dailyAggregate();
+  if(!arr.length){ toast('⚠️ ไม่มีข้อมูล'); return; }
+  const data = arr.map(d=>({
+    'วันที่': d.date,
+    'จำนวนรายการ': d.count,
+    'ลูกค้า (คน)': d.customers,
+    'ยอดขาย': d.sales,
+    'ต้นทุน': d.cost,
+    'ค่าธรรมเนียม': d.fee,
+    'กำไร': d.profit,
+  }));
+  const totSales = arr.reduce((a,b)=>a+b.sales,0);
+  const totCost = arr.reduce((a,b)=>a+b.cost,0);
+  const totFee = arr.reduce((a,b)=>a+b.fee,0);
+  const totProfit = arr.reduce((a,b)=>a+b.profit,0);
+  const totCust = new Set(state.transactions.filter(t=>inDateFilter(t.date)).map(t=>(t.buyer||'').trim().toLowerCase()).filter(Boolean)).size;
+  const totCount = arr.reduce((a,b)=>a+b.count,0);
+  data.push({});
+  data.push({'วันที่':'รวมทั้งหมด','จำนวนรายการ':totCount,'ลูกค้า (คน)':totCust,'ยอดขาย':totSales,'ต้นทุน':totCost,'ค่าธรรมเนียม':totFee,'กำไร':totProfit});
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14},{wch:14}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'รายวัน');
+  const today = ymdInTz(new Date());
+  XLSX.writeFile(wb, `termthukshop_รายวัน_${today}.xlsx`);
+  toast('📊 Export Excel เรียบร้อย');
+}
+
 function renderHistory(){
   fillHistStockOptions();
   const q = (document.getElementById('hist-search').value||'').toLowerCase();

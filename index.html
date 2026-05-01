@@ -404,12 +404,14 @@
         </div>
       </div>
       <div class="card mt-4" data-write-only>
-        <h3 class="font-semibold mb-3">➕ เพิ่มเกม / สินค้าใหม่</h3>
-        <form id="form-game" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม / สินค้า" required>
+        <h3 class="font-semibold mb-3">➕ เพิ่มเกม / เพิ่ม Pack ราคา</h3>
+        <div class="text-xs text-slate-500 mb-3">ถ้าใส่ชื่อเกมที่มีอยู่แล้ว → ระบบจะเพิ่ม pack/ราคาเข้าไปในเกมนั้น</div>
+        <form id="form-game" class="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <input class="input md:col-span-2" name="name" placeholder="ชื่อเกม / สินค้า" required list="games-list">
           <input class="input" name="category" placeholder="หมวด (ไม่บังคับ)">
+          <input class="input" name="pack" placeholder="ชื่อ Pack (เช่น 100💎)">
           <input class="input" name="price" type="number" step="0.01" min="0" placeholder="ราคาขาย (฿)">
-          <button class="btn">เพิ่ม</button>
+          <button class="btn">บันทึก</button>
         </form>
       </div>
     </section>
@@ -1533,22 +1535,38 @@ function buildAnalysis(tx, arr, trend){
 /* ============================================================
    GAMES
    ============================================================ */
+function gamePacks(g){
+  // รวม legacy field price (ถ้ามี) เข้ากับ prices array
+  const arr = Array.isArray(g.prices) ? g.prices.slice() : [];
+  if(arr.length===0 && (+g.price||0) > 0){
+    arr.push({ pack:'', price:+g.price });
+  }
+  return arr;
+}
 function renderGames(){
   const q = (document.getElementById('games-search').value||'').toLowerCase();
   const list = state.games.filter(g=>(g.name||'').toLowerCase().includes(q)).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
   document.getElementById('games-body').innerHTML = list.map(g=>{
-    const price = +g.price||0;
-    const priceTxt = price>0 ? fmt(price) : '<span class="text-slate-500 text-xs">ยังไม่ตั้งราคา</span>';
+    const packs = gamePacks(g);
     const cat = g.category ? `<span class="pill pill-info" style="font-size:11px">${escapeHtml(g.category)}</span>` : '';
     const d = g.created_at ? (g.created_at+'').slice(0,10) : '';
-    const delBtn = currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171;padding:4px 10px" onclick="delGame('${g.id}')">ลบ</button>` : '';
+    const delBtn = currentRole==='admin' ? `<button class="btn btn-ghost text-xs" style="color:#f87171;padding:4px 10px" onclick="delGame('${g.id}')">ลบเกม</button>` : '';
+    const packsHtml = packs.length>0 ? packs.map((p,i)=>{
+      const lbl = p.pack ? escapeHtml(p.pack) : '<span class="text-slate-500">—</span>';
+      const rmBtn = currentRole==='admin' ? `<button class="text-rose-300 hover:text-rose-200 text-xs" style="margin-left:6px" onclick="delGamePack('${g.id}',${i})" title="ลบ pack นี้">✕</button>` : '';
+      return `<div class="flex items-center justify-between gap-2 py-1 px-2 rounded" style="background:rgba(34,211,238,.06);border:1px solid rgba(34,211,238,.15);">
+        <span class="text-xs text-slate-300 truncate">${lbl}</span>
+        <span class="font-bold text-cyan-300 whitespace-nowrap">฿${fmt(+p.price||0)}</span>
+        ${rmBtn}
+      </div>`;
+    }).join('') : '<div class="text-slate-500 text-xs">ยังไม่มี pack/ราคา</div>';
     return `<div class="card" style="padding:14px;display:flex;flex-direction:column;gap:8px;background:rgba(31,41,55,.5);border:1px solid rgba(255,255,255,.08);">
       <div class="flex items-start justify-between gap-2">
         <div class="font-semibold text-base text-white truncate" style="flex:1">${escapeHtml(g.name||'')}</div>
         ${cat}
       </div>
-      <div class="text-xs text-slate-400">ราคาขาย</div>
-      <div class="text-xl font-bold text-cyan-300">${priceTxt}</div>
+      <div class="text-xs text-slate-400">Pack / ราคา</div>
+      <div class="space-y-1">${packsHtml}</div>
       <div class="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
         <span class="text-xs text-slate-500">${d}</span>
         ${delBtn}
@@ -1563,13 +1581,44 @@ function renderGames(){
     fg.addEventListener('submit', async e=>{
       e.preventDefault();
       const fd = new FormData(fg); const obj = Object.fromEntries(fd.entries());
-      obj.price = parseFloat(obj.price)||0;
-      obj.created_by = currentUser.id;
-      const { error } = await supa.from('games').upsert(obj, {onConflict:'name'});
-      if(error){ alert('เพิ่มล้มเหลว: '+error.message); return; }
-      fg.reset(); toast('✅ เพิ่มเกม / สินค้าแล้ว');
+      const name = (obj.name||'').trim();
+      const pack = (obj.pack||'').trim();
+      const price = parseFloat(obj.price)||0;
+      if(!name){ alert('กรุณาใส่ชื่อเกม'); return; }
+      const existing = state.games.find(g=>(g.name||'').toLowerCase() === name.toLowerCase());
+      if(existing){
+        // เกมมีอยู่แล้ว → append pack/price
+        const newPacks = gamePacks(existing);
+        if(price > 0 || pack) newPacks.push({ pack, price });
+        const update = { prices: newPacks };
+        if(obj.category) update.category = obj.category;
+        const { error } = await supa.from('games').update(update).eq('id', existing.id);
+        if(error){ alert('เพิ่ม pack ล้มเหลว: '+error.message); return; }
+        fg.reset(); toast('✅ เพิ่ม pack เข้าเกม "'+name+'" แล้ว');
+      } else {
+        const insertObj = {
+          name,
+          category: obj.category || null,
+          prices: (price>0 || pack) ? [{ pack, price }] : [],
+          created_by: currentUser.id
+        };
+        const { error } = await supa.from('games').insert(insertObj);
+        if(error){ alert('เพิ่มเกมล้มเหลว: '+error.message); return; }
+        fg.reset(); toast('✅ เพิ่มเกม / สินค้าแล้ว');
+      }
     });
   }
+}
+async function delGamePack(gameId, idx){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้นที่ลบได้'); return; }
+  const g = state.games.find(x=>x.id===gameId);
+  if(!g) return;
+  const packs = gamePacks(g);
+  if(!confirm(`ลบ pack "${packs[idx]?.pack||'—'}" ราคา ฿${fmt(packs[idx]?.price||0)}?`)) return;
+  packs.splice(idx,1);
+  const { error } = await supa.from('games').update({ prices: packs }).eq('id', gameId);
+  if(error){ alert('ลบล้มเหลว: '+error.message); return; }
+  toast('🗑️ ลบ pack แล้ว');
 }
 document.getElementById('games-search').addEventListener('input', renderGames);
 async function delGame(id){

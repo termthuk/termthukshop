@@ -51,9 +51,14 @@ create table if not exists public.games (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   category text,
+  price numeric,
+  prices jsonb default '[]'::jsonb,
   created_by uuid references auth.users(id),
   created_at timestamptz default now()
 );
+-- migration: เพิ่มคอลัมน์ prices สำหรับเก็บหลาย pack/หลายราคา
+alter table public.games add column if not exists price numeric;
+alter table public.games add column if not exists prices jsonb default '[]'::jsonb;
 
 -- 5) Credits (เครดิต / ค้างชำระ)
 create table if not exists public.credits (

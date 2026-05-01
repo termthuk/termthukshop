@@ -239,7 +239,7 @@
               <button type="button" id="calc-toggle" class="btn btn-ghost text-xs" style="padding:2px 10px">ซ่อน</button>
             </div>
             <div id="calc-panel">
-              <input id="calc-display" class="input text-right text-2xl font-bold mb-2" style="font-family:'Courier New',monospace" value="0" readonly>
+              <input id="calc-display" class="input text-right text-2xl font-bold mb-2" style="font-family:'Courier New',monospace" value="0" readonly tabindex="0" title="คลิกเพื่อใช้คีย์บอร์ด">
               <div id="calc-history" class="text-xs text-slate-500 text-right mb-2 truncate" style="min-height:14px"></div>
               <div class="grid grid-cols-4 gap-2">
                 <button type="button" class="btn btn-ghost" data-calc="C" style="color:#f87171">C</button>
@@ -1224,19 +1224,33 @@ function bindCalculator(){
       return Math.round(v*1e8)/1e8;
     } catch(e){ return null; }
   };
+  const applyKey = (v)=>{
+    if(v==='C'){ expr=''; lastResult=null; }
+    else if(v==='back'){ expr = expr.slice(0,-1); }
+    else if(v==='='){
+      const r = evalExpr();
+      if(r!=null){ lastResult = r; expr = String(r); }
+    }
+    else { expr += v; }
+    refresh();
+  };
   panel.querySelectorAll('[data-calc]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const v = btn.dataset.calc;
-      if(v==='C'){ expr=''; lastResult=null; }
-      else if(v==='back'){ expr = expr.slice(0,-1); }
-      else if(v==='='){
-        const r = evalExpr();
-        if(r!=null){ lastResult = r; expr = String(r); }
-      }
-      else { expr += v; }
-      refresh();
-    });
+    btn.addEventListener('click', ()=> applyKey(btn.dataset.calc));
   });
+  // คีย์บอร์ด: คลิก display ก่อน แล้วพิมพ์ได้เลย
+  disp.addEventListener('keydown', e=>{
+    const k = e.key;
+    if(/^[0-9]$/.test(k)) { applyKey(k); e.preventDefault(); }
+    else if(k==='+' || k==='-' || k==='*' || k==='/' || k==='%' || k==='.' || k==='(' || k===')') { applyKey(k); e.preventDefault(); }
+    else if(k==='Enter' || k==='=') { applyKey('='); e.preventDefault(); }
+    else if(k==='Backspace') { applyKey('back'); e.preventDefault(); }
+    else if(k==='Escape' || k==='c' || k==='C') { applyKey('C'); e.preventDefault(); }
+    else if(k==='x' || k==='X') { applyKey('*'); e.preventDefault(); }
+  });
+  disp.addEventListener('focus', ()=>{ disp.style.borderColor = '#22d3ee'; disp.style.boxShadow = '0 0 0 2px rgba(34,211,238,.25)'; });
+  disp.addEventListener('blur', ()=>{ disp.style.borderColor = ''; disp.style.boxShadow = ''; });
+  // คลิกที่ panel ใดๆ → focus display เพื่อพิมพ์ต่อได้
+  panel.addEventListener('click', e=>{ if(e.target.tagName!=='BUTTON' && e.target.tagName!=='INPUT') disp.focus(); });
   panel.querySelectorAll('[data-calc-send]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const r = evalExpr();

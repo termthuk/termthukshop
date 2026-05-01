@@ -19,16 +19,27 @@ create table if not exists public.transactions (
   created_at timestamptz default now()
 );
 
--- 2) Stocks (สต๊อก iTunes/Razer/Mycard/USDT)
+-- 2) Stocks (สต๊อก — ประเภทถูกจัดการผ่านตาราง stock_types)
 create table if not exists public.stocks (
   id uuid primary key default gen_random_uuid(),
-  type text not null check (type in ('itunes','razer','mycard','usdt')),
+  type text not null,
   date date not null default current_date,
   qty numeric(12,2) default 0,
   cost numeric(12,2) default 0,
   source text,
   note text,
   created_by uuid references auth.users(id),
+  created_at timestamptz default now()
+);
+-- migration: ลบ check constraint เก่าที่จำกัด type เฉพาะ 4 ค่า
+alter table public.stocks drop constraint if exists stocks_type_check;
+
+-- 2b) Stock Types (ประเภทสต๊อกที่ดูแลผ่าน UI)
+create table if not exists public.stock_types (
+  key text primary key,
+  label text not null,
+  qty_label text default 'มูลค่า/จำนวน',
+  sort_order int default 999,
   created_at timestamptz default now()
 );
 
@@ -178,6 +189,13 @@ create policy "auth users can read stocks" on public.stocks for select using (au
 create policy "auth users can insert stocks" on public.stocks for insert with check (auth.role() = 'authenticated');
 create policy "auth users can update stocks" on public.stocks for update using (auth.role() = 'authenticated');
 create policy "auth users can delete stocks" on public.stocks for delete using (auth.role() = 'authenticated');
+
+-- stock_types
+alter table public.stock_types enable row level security;
+create policy "auth users can read stock_types" on public.stock_types for select using (auth.role() = 'authenticated');
+create policy "auth users can insert stock_types" on public.stock_types for insert with check (auth.role() = 'authenticated');
+create policy "auth users can update stock_types" on public.stock_types for update using (auth.role() = 'authenticated');
+create policy "auth users can delete stock_types" on public.stock_types for delete using (auth.role() = 'authenticated');
 
 -- supplies
 create policy "auth users can read sup" on public.supplies for select using (auth.role() = 'authenticated');

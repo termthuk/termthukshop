@@ -284,10 +284,6 @@
           <input id="hist-search" class="input" style="max-width:240px" placeholder="🔎 ค้นหา">
           <select id="hist-stock" class="select" style="max-width:180px">
             <option value="">ทุกสต๊อก</option>
-            <option value="itunes">iTunes</option><option value="razer">Razer</option>
-            <option value="mycard_p">Mycard P</option><option value="mycard_n">Mycard N</option>
-            <option value="usdt">USDT/PHP</option><option value="xbox">Xbox</option>
-            <option value="none">เติมตรง</option>
           </select>
           <button class="btn btn-ghost" onclick="exportXLSX()">📊 Export Excel</button>
           <button class="btn btn-ghost" onclick="exportCSV()">⬇️ Export CSV</button>
@@ -308,14 +304,7 @@
 
     <!-- สต๊อก -->
     <section id="page-stock" class="page hidden fade-in">
-      <div class="flex gap-2 mb-4 flex-wrap">
-        <div class="tab active" data-stock="itunes">🎵 iTunes</div>
-        <div class="tab" data-stock="razer">🟢 Razer</div>
-        <div class="tab" data-stock="mycard_p">🟡 Mycard P</div>
-        <div class="tab" data-stock="mycard_n">🟠 Mycard N</div>
-        <div class="tab" data-stock="usdt">💱 USDT / PHP</div>
-        <div class="tab" data-stock="xbox">🎮 Xbox</div>
-      </div>
+      <div id="stock-tabs" class="flex gap-2 mb-4 flex-wrap"></div>
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div class="card"><div class="text-xs text-slate-400">มูลค่ารวม</div><div id="stock-sum-qty" class="text-xl font-bold">0</div></div>
         <div class="card"><div class="text-xs text-slate-400">ต้นทุนรวม</div><div id="stock-sum-cost" class="text-xl font-bold text-amber-300">฿0</div></div>
@@ -740,7 +729,7 @@ function canSeePage(page){
   return MEMBER_PAGES.has(page);
 }
 function canWrite(){ return currentRole === 'admin' || currentRole === 'staff'; }
-const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[], user_profiles:[], login_logs:[] };
+const state = { transactions:[], stocks:[], supplies:[], games:[], credits:[], shareholders:[], expenses:[], assets:[], user_profiles:[], login_logs:[], stock_types:[] };
 const dateFilter = { from:null, to:null };
 const PAGES_NO_FILTER = new Set(['topup','capital','games','dividend','users']);
 
@@ -940,7 +929,7 @@ async function showApp(){
    ============================================================ */
 async function loadAllData(){
   toast('⏳ โหลดข้อมูล...');
-  const [tx, st, sp, gm, cr, sh, ex, as, up, ll] = await Promise.all([
+  const [tx, st, sp, gm, cr, sh, ex, as, up, ll, stp] = await Promise.all([
     supa.from('transactions').select('*').order('date', {ascending:false}),
     supa.from('stocks').select('*').order('date', {ascending:false}),
     supa.from('supplies').select('*').order('date', {ascending:false}),
@@ -951,6 +940,7 @@ async function loadAllData(){
     supa.from('assets').select('*').order('date', {ascending:false}),
     supa.from('user_profiles').select('*').order('email'),
     supa.from('login_logs').select('*').order('created_at', {ascending:false}).limit(500),
+    supa.from('stock_types').select('*').order('sort_order'),
   ]);
   state.transactions = tx.data || [];
   state.stocks = st.data || [];
@@ -962,11 +952,12 @@ async function loadAllData(){
   state.assets = as.data || [];
   state.user_profiles = up.data || [];
   state.login_logs = ll.data || [];
+  state.stock_types = stp.data || [];
   toast('✅ โหลดข้อมูลเรียบร้อย');
 }
 
 function subscribeRealtime(){
-  ['transactions','stocks','supplies','games','credits','shareholders','expenses','assets','user_profiles','login_logs'].forEach(table=>{
+  ['transactions','stocks','supplies','games','credits','shareholders','expenses','assets','user_profiles','login_logs','stock_types'].forEach(table=>{
     supa.channel('rt-'+table)
       .on('postgres_changes', { event:'*', schema:'public', table }, payload=>{
         applyRealtime(table, payload);
@@ -979,13 +970,15 @@ function applyRealtime(table, payload){
   const stKey = table; // same name
   const list = state[stKey];
   if(!list) return;
+  const pkField = table==='stock_types' ? 'key' : 'id';
+  const matchPk = (r, src)=> r[pkField] === src[pkField];
   if(payload.eventType==='INSERT'){
-    if(!list.find(r=>r.id===payload.new.id)) list.unshift(payload.new);
+    if(!list.find(r=>matchPk(r,payload.new))) list.unshift(payload.new);
   } else if(payload.eventType==='UPDATE'){
-    const i = list.findIndex(r=>r.id===payload.new.id);
+    const i = list.findIndex(r=>matchPk(r,payload.new));
     if(i>=0) list[i] = payload.new;
   } else if(payload.eventType==='DELETE'){
-    const i = list.findIndex(r=>r.id===payload.old.id);
+    const i = list.findIndex(r=>matchPk(r,payload.old));
     if(i>=0) list.splice(i,1);
   }
   refreshPage(currentPage());
@@ -1282,12 +1275,12 @@ function fillStockOptions(){
   const sel = document.getElementById('topup-stock-type');
   if(!sel) return;
   const current = sel.value;
-  // refresh stock group labels with remaining
+  // refresh stock group labels with remaining (โหลดจาก DB)
   const stockGroup = document.getElementById('topup-stock-group');
-  const stockTypes = [['itunes','iTunes'],['razer','Razer Gold'],['mycard_p','Mycard P'],['mycard_n','Mycard N'],['usdt','USDT / PHP'],['xbox','Xbox']];
-  stockGroup.innerHTML = stockTypes.map(([k,n])=>{
-    const r = stockRemaining(k);
-    return `<option value="${k}">${n} — เหลือ ${fmt(r)}</option>`;
+  const types = state.stock_types.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  stockGroup.innerHTML = types.map(t=>{
+    const r = stockRemaining(t.key);
+    return `<option value="${escapeHtml(t.key)}">${escapeHtml(t.label)} — เหลือ ${fmt(r)}</option>`;
   }).join('');
   // populate suppliers — show 4 default suppliers + any extras from state
   const supGroup = document.getElementById('topup-supply-group');
@@ -1355,6 +1348,7 @@ function renderRecent(){
    HISTORY
    ============================================================ */
 function renderHistory(){
+  fillHistStockOptions();
   const q = (document.getElementById('hist-search').value||'').toLowerCase();
   const fs = document.getElementById('hist-stock').value;
   const rows = state.transactions.filter(t=>{
@@ -1395,7 +1389,19 @@ document.getElementById('hist-search').addEventListener('input', renderHistory);
 document.getElementById('hist-stock').addEventListener('change', renderHistory);
 function stockLabel(k){
   if(k && k.startsWith('supply:')) return '💳 '+k.slice(7);
-  return ({itunes:'iTunes', razer:'Razer', mycard_p:'Mycard P', mycard_n:'Mycard N', usdt:'USDT/PHP', xbox:'Xbox', none:'เติมตรง'})[k]||'-';
+  if(k==='none') return 'เติมตรง';
+  const t = state.stock_types && state.stock_types.find(x=>x.key===k);
+  return t ? t.label : (k||'-');
+}
+function fillHistStockOptions(){
+  const sel = document.getElementById('hist-stock');
+  if(!sel) return;
+  const cur = sel.value;
+  const types = state.stock_types.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  sel.innerHTML = '<option value="">ทุกสต๊อก</option>'
+    + types.map(t=>`<option value="${escapeHtml(t.key)}">${escapeHtml(t.label)}</option>`).join('')
+    + '<option value="none">เติมตรง</option>';
+  sel.value = cur;
 }
 function exportTxRows(){
   // Apply current date filter + search + stock filter (what user sees)
@@ -1460,17 +1466,62 @@ function exportXLSX(){
    STOCK
    ============================================================ */
 let activeStock = 'itunes';
-const stockTitles = {itunes:'iTunes', razer:'Razer Gold', mycard_p:'Mycard P', mycard_n:'Mycard N', usdt:'USDT / PHP', xbox:'Xbox'};
-const stockQtyLabels = {itunes:'มูลค่าหน้าบัตร ($)', razer:'มูลค่าหน้าบัตร ($)', mycard_p:'มูลค่า / point', mycard_n:'มูลค่า / point', usdt:'จำนวน (USDT/PHP)', xbox:'มูลค่าหน้าบัตร ($)'};
-document.querySelectorAll('[data-stock]').forEach(el=>{
-  el.addEventListener('click',()=>{
-    document.querySelectorAll('[data-stock]').forEach(t=>t.classList.remove('active'));
-    el.classList.add('active'); activeStock = el.dataset.stock; renderStock();
+function stockTypeLabel(k){
+  const t = state.stock_types.find(x=>x.key===k);
+  return t ? t.label : k;
+}
+function stockTypeQtyLabel(k){
+  const t = state.stock_types.find(x=>x.key===k);
+  return t ? (t.qty_label || 'มูลค่า/จำนวน') : 'มูลค่า/จำนวน';
+}
+function renderStockTabs(){
+  const wrap = document.getElementById('stock-tabs');
+  if(!wrap) return;
+  const types = state.stock_types.slice().sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  if(!types.find(t=>t.key===activeStock) && types.length) activeStock = types[0].key;
+  const isAdmin = currentRole==='admin';
+  wrap.innerHTML = types.map(t=>`
+    <div class="tab ${t.key===activeStock?'active':''}" data-stock="${escapeHtml(t.key)}" style="display:flex;align-items:center;gap:6px">
+      <span>${escapeHtml(t.label)}</span>
+      ${isAdmin ? `<span class="text-rose-300 hover:text-rose-200" style="cursor:pointer;font-size:11px;opacity:0.6" onclick="event.stopPropagation();delStockType('${escapeHtml(t.key)}')" title="ลบประเภทสต๊อก">✕</span>` : ''}
+    </div>`).join('') + (isAdmin ? `<div class="tab" style="cursor:pointer;color:#22d3ee" onclick="addStockType()">+ เพิ่ม</div>` : '');
+  wrap.querySelectorAll('[data-stock]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      activeStock = el.dataset.stock;
+      renderStockTabs();
+      renderStock();
+    });
   });
-});
+}
+async function addStockType(){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้น'); return; }
+  const label = prompt('ชื่อประเภทสต๊อก (เช่น "🎵 iTunes")');
+  if(!label || !label.trim()) return;
+  const key = prompt('key (ตัวอักษร a-z, ตัวเลข, _ — เช่น "itunes")');
+  if(!key || !/^[a-z0-9_]+$/.test(key)){ alert('key ไม่ถูกต้อง (a-z, 0-9, _ เท่านั้น)'); return; }
+  const qty_label = prompt('label หน่วย (เช่น "มูลค่าหน้าบัตร ($)")', 'มูลค่า/จำนวน') || 'มูลค่า/จำนวน';
+  const sort_order = (state.stock_types.reduce((m,t)=>Math.max(m,t.sort_order||0),0))+1;
+  const { error } = await supa.from('stock_types').insert({ key, label: label.trim(), qty_label, sort_order });
+  if(error){ alert('เพิ่มล้มเหลว: '+error.message); return; }
+  toast('✅ เพิ่มประเภทสต๊อกแล้ว');
+}
+async function delStockType(key){
+  if(currentRole !== 'admin'){ alert('เฉพาะ Admin เท่านั้น'); return; }
+  const cntStock = state.stocks.filter(s=>s.type===key).length;
+  const cntTx = state.transactions.filter(t=>t.stock_type===key).length;
+  if(cntStock>0 || cntTx>0){
+    alert(`ลบไม่ได้ — มีสต๊อก ${cntStock} รายการ และประวัติการขาย ${cntTx} รายการที่ใช้ประเภทนี้\nกรุณาลบรายการเหล่านั้นก่อน`);
+    return;
+  }
+  if(!confirm(`ลบประเภทสต๊อก "${stockTypeLabel(key)}"?`)) return;
+  const { error } = await supa.from('stock_types').delete().eq('key', key);
+  if(error){ alert('ลบล้มเหลว: '+error.message); return; }
+  toast('🗑️ ลบประเภทสต๊อกแล้ว');
+}
 function renderStock(){
-  document.getElementById('stock-title').textContent = 'รายการสต๊อก '+stockTitles[activeStock];
-  document.getElementById('stock-label-qty').textContent = stockQtyLabels[activeStock];
+  renderStockTabs();
+  document.getElementById('stock-title').textContent = 'รายการสต๊อก '+stockTypeLabel(activeStock);
+  document.getElementById('stock-label-qty').textContent = stockTypeQtyLabel(activeStock);
   const list = state.stocks.filter(s=>s.type===activeStock && inDateFilter(s.date));
   document.getElementById('stock-body').innerHTML = list.map(s=>{
     const per = s.qty? (s.cost/s.qty):0;

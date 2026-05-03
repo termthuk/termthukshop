@@ -1117,9 +1117,14 @@ function dtInTz(input){
 }
 
 // ค่าธรรมเนียมช่องทางการชำระ (หักจากยอดขาย)
-const CHANNEL_FEES = { 'True': 0.029 };
-function channelFeeRate(channel){ return CHANNEL_FEES[channel] || 0; }
-function txFee(t){ return (+t.sales||0) * channelFeeRate(t.channel); }
+const CHANNEL_FEES = { 'True': { rate: 0.029, max: 20 } };
+function channelFeeRate(channel){ return (CHANNEL_FEES[channel] && CHANNEL_FEES[channel].rate) || 0; }
+function channelFeeMax(channel){ return (CHANNEL_FEES[channel] && CHANNEL_FEES[channel].max) || Infinity; }
+function calcChannelFee(channel, sales){
+  const fee = (+sales||0) * channelFeeRate(channel);
+  return Math.min(fee, channelFeeMax(channel));
+}
+function txFee(t){ return calcChannelFee(t.channel, t.sales); }
 function txProfit(t){ return (+t.sales||0) - (+t.cost||0) - txFee(t); }
 
 function renderOverview(){
@@ -1369,12 +1374,15 @@ function updateProfitPreview(){
   const s = parseFloat(f.querySelector('[name=sales]').value)||0;
   const ch = f.querySelector('[name=channel]').value;
   const feeRate = channelFeeRate(ch);
-  const fee = s * feeRate;
+  const feeMax = channelFeeMax(ch);
+  const fee = calcChannelFee(ch, s);
   const p = s - c - fee;
   document.getElementById('form-profit').textContent = fmt(p);
   document.getElementById('form-profit').className = 'text-2xl font-bold '+(p>=0?'text-emerald-300':'text-rose-300');
   const marginPct = s ? (p/s*100).toFixed(1) : '0';
-  const feeTxt = feeRate>0 ? ` • หัก ${ch} ${(feeRate*100).toFixed(1)}% (-${fmt(fee)})` : '';
+  const capped = isFinite(feeMax) && s*feeRate > feeMax;
+  const capTxt = isFinite(feeMax) ? ` สูงสุด ${fmt(feeMax)}฿` : '';
+  const feeTxt = feeRate>0 ? ` • หัก ${ch} ${(feeRate*100).toFixed(1)}%${capTxt} (-${fmt(fee)}${capped?' • ครบเพดาน':''})` : '';
   document.getElementById('form-margin').textContent = `Margin: ${marginPct}%${feeTxt}`;
 }
 function renderRecent(){

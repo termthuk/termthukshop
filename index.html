@@ -978,33 +978,49 @@ async function showApp(){
 /* ============================================================
    DATA LOAD + REALTIME
    ============================================================ */
+// ดึงข้อมูลทุก row โดยวนแบ่งหน้าๆ ละ 1000 (Supabase cap ต่อ request)
+async function fetchAllRows(buildQuery){
+  const PAGE = 1000;
+  let from = 0;
+  let all = [];
+  while(true){
+    const { data, error } = await buildQuery().range(from, from + PAGE - 1);
+    if(error){ console.error('fetchAllRows error:', error); return all; }
+    if(!data || data.length === 0) break;
+    all = all.concat(data);
+    if(data.length < PAGE) break;
+    from += PAGE;
+  }
+  return all;
+}
 async function loadAllData(){
   toast('⏳ โหลดข้อมูล...');
   const [tx, st, sp, gm, cr, sh, ex, as, up, ll, stp] = await Promise.all([
-    supa.from('transactions').select('*').order('date', {ascending:false}),
-    supa.from('stocks').select('*').order('date', {ascending:false}),
-    supa.from('supplies').select('*').order('date', {ascending:false}),
-    supa.from('games').select('*').order('name'),
-    supa.from('credits').select('*').order('date', {ascending:false}),
-    supa.from('shareholders').select('*').order('sort_order').order('name'),
-    supa.from('expenses').select('*').order('date', {ascending:false}),
-    supa.from('assets').select('*').order('date', {ascending:false}),
-    supa.from('user_profiles').select('*').order('email'),
-    supa.from('login_logs').select('*').order('created_at', {ascending:false}).limit(500),
-    supa.from('stock_types').select('*').order('sort_order'),
+    fetchAllRows(()=> supa.from('transactions').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('stocks').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('supplies').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('games').select('*').order('name')),
+    fetchAllRows(()=> supa.from('credits').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('shareholders').select('*').order('sort_order').order('name')),
+    fetchAllRows(()=> supa.from('expenses').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('assets').select('*').order('date', {ascending:false})),
+    fetchAllRows(()=> supa.from('user_profiles').select('*').order('email')),
+    // login_logs อ่านแค่ 500 ล่าสุดพอ
+    supa.from('login_logs').select('*').order('created_at', {ascending:false}).limit(500).then(r=>r.data||[]),
+    fetchAllRows(()=> supa.from('stock_types').select('*').order('sort_order')),
   ]);
-  state.transactions = tx.data || [];
-  state.stocks = st.data || [];
-  state.supplies = sp.data || [];
-  state.games = gm.data || [];
-  state.credits = cr.data || [];
-  state.shareholders = sh.data || [];
-  state.expenses = ex.data || [];
-  state.assets = as.data || [];
-  state.user_profiles = up.data || [];
-  state.login_logs = ll.data || [];
-  state.stock_types = stp.data || [];
-  toast('✅ โหลดข้อมูลเรียบร้อย');
+  state.transactions = tx;
+  state.stocks = st;
+  state.supplies = sp;
+  state.games = gm;
+  state.credits = cr;
+  state.shareholders = sh;
+  state.expenses = ex;
+  state.assets = as;
+  state.user_profiles = up;
+  state.login_logs = ll;
+  state.stock_types = stp;
+  toast(`✅ โหลดข้อมูลเรียบร้อย (${tx.length.toLocaleString()} รายการ)`);
 }
 
 function subscribeRealtime(){

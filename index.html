@@ -830,17 +830,24 @@ function updateDateFilterLabel(){
   else lbl.textContent = `${dateFilter.from||'…'} → ${dateFilter.to||'…'}`;
 }
 function applyPreset(p){
-  const today = new Date();
-  const fmt = d => d.toISOString().slice(0,10);
-  const t = fmt(today);
+  // ใช้วันที่ในเขตเวลา Bangkok (APP_TZ) ให้ตรงกับ inDateFilter ที่เทียบด้วย ymdInTz
+  const t = ymdInTz(new Date());
+  const shiftYmd = (ymd, days)=>{
+    const d = new Date(ymd + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0,10);
+  };
   if(p==='today') return setDateRange(t, t);
-  if(p==='7d'){ const d=new Date(today); d.setDate(d.getDate()-6); return setDateRange(fmt(d), t); }
-  if(p==='30d'){ const d=new Date(today); d.setDate(d.getDate()-29); return setDateRange(fmt(d), t); }
-  if(p==='thisMonth'){ const d=new Date(today.getFullYear(), today.getMonth(), 1); return setDateRange(fmt(d), t); }
+  if(p==='7d') return setDateRange(shiftYmd(t, -6), t);
+  if(p==='30d') return setDateRange(shiftYmd(t, -29), t);
+  if(p==='thisMonth') return setDateRange(t.slice(0,7) + '-01', t);
   if(p==='lastMonth'){
-    const start=new Date(today.getFullYear(), today.getMonth()-1, 1);
-    const end=new Date(today.getFullYear(), today.getMonth(), 0);
-    return setDateRange(fmt(start), fmt(end));
+    const [y, m] = t.split('-').map(Number);
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    const lastDay = new Date(Date.UTC(y, m - 1, 0)).getUTCDate();
+    const pad2 = n => String(n).padStart(2,'0');
+    return setDateRange(`${py}-${pad2(pm)}-01`, `${py}-${pad2(pm)}-${pad2(lastDay)}`);
   }
   if(p==='all') return setDateRange(null, null);
 }

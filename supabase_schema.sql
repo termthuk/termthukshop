@@ -92,10 +92,13 @@ create table if not exists public.shareholders (
   name text not null unique,
   percentage numeric(5,2) default 0,
   capital numeric(12,2) default 0,
+  sort_order int default 999,
   note text,
   created_by uuid references auth.users(id),
   created_at timestamptz default now()
 );
+-- migration: เพิ่มคอลัมน์ sort_order สำหรับเรียงลำดับผู้ถือหุ้น
+alter table public.shareholders add column if not exists sort_order int default 999;
 
 -- 7) Expenses (ค่าใช้จ่าย)
 create table if not exists public.expenses (
@@ -247,6 +250,7 @@ create policy "auth users can insert logs" on public.login_logs for insert with 
 -- =====================================================
 alter publication supabase_realtime add table public.transactions;
 alter publication supabase_realtime add table public.stocks;
+alter publication supabase_realtime add table public.stock_types;
 alter publication supabase_realtime add table public.supplies;
 alter publication supabase_realtime add table public.games;
 alter publication supabase_realtime add table public.credits;

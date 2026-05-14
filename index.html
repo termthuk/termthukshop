@@ -1212,6 +1212,7 @@ function renderTopup(){
           if(!confirm(`⚠️ ยอดคงเหลือไม่พอ\nคงเหลือ: ${fmt(remain)}\nต้นทุนรายการนี้: ${fmt(obj.cost)}\nต้องการบันทึกต่อหรือไม่?`)) return;
         }
       }
+      if(obj.stock_type === 'none') obj.stock_type = null;
       const btn = document.getElementById('btn-tx-save');
       btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> บันทึก...';
       const { error } = await supa.from('transactions').insert(obj);
